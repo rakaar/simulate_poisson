@@ -9,13 +9,14 @@ from sim_utils import poisson_spk_train
 
 # Helper for parallel continuous DDM single trial (resample until first hit within [0, T])
 def cont_ddm_first_hit(T, dt, theta_E, mu, sigma_sq):
-    # rng = np.random.default_rng()
+    rng = np.random.default_rng()
     dB = dt ** 0.5
     while True:
         dv = 0.0
         t = 0.0
         while t < T:
-            dv += (mu * dt) + ((sigma_sq ** 0.5) * np.random.normal(0, dB))
+            dv += (mu * dt) + ((sigma_sq ** 0.5) * rng.normal(0, dB))
+
             t += dt
             if dv >= theta_E:
                 return t, True
