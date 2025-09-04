@@ -1,3 +1,4 @@
+# Gamma from psychometric curve
 # %% 
 import numpy as np
 import os

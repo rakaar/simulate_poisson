@@ -1,3 +1,4 @@
+# analyse data where multiply left and right rates by a scaling factor to see if TIED and WL hold
 # %%
 import pickle
 import numpy as np
@@ -138,7 +139,7 @@ for i, sf in enumerate(scaling_factors):
             ax.set_xlabel(f'Quantiles ABL={ABL_arr[2]}')
         # if i == 0 and j == 0:
         #     ax.legend()
-        
+
         
 
 fig_qq.suptitle('Q-Q Plots of Reaction Times', fontsize=16)

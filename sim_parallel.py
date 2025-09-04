@@ -1,3 +1,4 @@
+# Poisson DDM - spike trains - inefficient
 # %%
 import numpy as np
 import matplotlib

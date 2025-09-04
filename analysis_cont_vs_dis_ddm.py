@@ -1,3 +1,4 @@
+# Analysis - discrete DDM vs cont DDM 
 # %%
 import pickle
 import numpy as np

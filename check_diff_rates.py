@@ -1,3 +1,4 @@
+# Generate data - multiply left and right rates by a scaling factor to see if TIED and WL hold
 # %% 
 import numpy as np
 import os

@@ -1,3 +1,4 @@
+# Poisson DDM - efficient via spk times
 # %%
 import numpy as np
 import os

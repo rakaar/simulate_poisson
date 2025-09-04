@@ -1,3 +1,4 @@
+# spike timings and spike train generating funcs
 import numpy as np
 
 def poisson_spk_train(rate, T):
