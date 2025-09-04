@@ -95,7 +95,7 @@ def simulate_fpt(mu1, mu2, theta, rng=None):
     return time
 
 
-def simulate_cont_ddm_fpt(mu, sigma_sq, theta, N_sim=50_000, T=2.0, dt=2e-3, rng=None):
+def simulate_cont_ddm_fpt(mu, sigma_sq, theta, N_sim=50_000, T=2.0, dt=1e-4, rng=None):
     """
     Simulate first-passage times for the continuous DDM:
         dX = mu dt + sqrt(sigma_sq) dW,
@@ -237,13 +237,14 @@ def fpt_density_continuous_ddm(t, mu, sigma_sq, theta, M=401):
 
 def main():
     #  1. Define Parameters and Plot the Analytical PDF
-    A = 60; I = 4
+    A = 20; I = 1
     r0 = (1000/0.3)
     rate_lambda = 0.1
     rR = r0 * (10 ** (rate_lambda * A / 20)) * (10 ** (rate_lambda * I / 40))
     rL = r0 * (10 ** (rate_lambda * A / 20)) * (10 ** (-rate_lambda * I / 40))
     mu1_true = rR
     mu2_true = rL
+    print(f"mu1_true={mu1_true}, mu2_true={mu2_true}")
     theta_true = 30      # Boundary (integer)
 
     # Time vector for plotting
@@ -259,19 +260,7 @@ def main():
     for i in range(num_trials):
         rt_data[i] = simulate_fpt(mu1_true, mu2_true, theta_true, rng=rng)
 
-    #  3. Compare: histogram vs true PDF (Poisson/Discrete DDM)
-    plt.figure(figsize=(7, 4), facecolor="white")
-    bins = np.arange(0.0, 2.0 + 0.01, 0.01)  # 0:.01:2
-    plt.hist(rt_data, bins=bins, density=True, alpha=0.5, edgecolor="none", label="Poisson sim")
-    # Use the first color from the current cycle for the PDF line
-    cycle_colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['C0'])
-    plt.plot(t, pdf_values, linewidth=1.5, color=cycle_colors[0], label="Poisson theory")
-    plt.xlabel("Time")
-    plt.ylabel("Density")
-    plt.title(f"Poisson DDM: mu1={mu1_true}, mu2={mu2_true}, theta={theta_true}")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    #  3. We will plot after continuous simulation to overlay all in one figure
 
     #  4. Continuous DDM parameters from Poisson params
     mu_cont = mu1_true - mu2_true
@@ -279,18 +268,19 @@ def main():
     theta_cont = float(theta_true)
 
     #  5. Simulate continuous DDM FPT data
-    cont_rt_data = simulate_cont_ddm_fpt(mu_cont, sigma_sq_cont, theta_cont, N_sim=num_trials, T=2.0, dt=2e-3, rng=rng)
+    cont_rt_data = simulate_cont_ddm_fpt(mu_cont, sigma_sq_cont, theta_cont, N_sim=num_trials, T=2.0, rng=rng)
 
-    #  6. Theoretical FPT density for continuous DDM (numerical spectral method)
-    cont_pdf_values = fpt_density_continuous_ddm(t, mu_cont, sigma_sq_cont, theta_cont, M=401)
-
-    #  7. Plot RTD of continuous DDM: histogram + theoretical PDF
+    #  6. Single plot: Poisson sim RTD + Skellam theory + Continuous DDM sim RTD
     plt.figure(figsize=(7, 4), facecolor="white")
-    plt.hist(cont_rt_data, bins=bins, density=True, alpha=0.5, edgecolor="none", label="Cont. DDM sim")
-    plt.plot(t, cont_pdf_values, linewidth=1.5, color=cycle_colors[1] if len(cycle_colors) > 1 else 'C1', label="Cont. DDM theory")
+    bins = np.arange(0.0, 2.0 + 0.01, 0.01)  # 0:.01:2
+    # Use the first color from the current cycle for the theory line
+    cycle_colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['C0'])
+    plt.hist(rt_data, bins=bins, density=True, alpha=0.45, edgecolor="none", label="Poisson sim")
+    plt.hist(cont_rt_data, bins=bins, density=True, alpha=0.45, edgecolor="none", label="Continuous DDM sim")
+    plt.plot(t, pdf_values, linewidth=1.5, color=cycle_colors[0], label="Poisson theory")
     plt.xlabel("Time")
     plt.ylabel("Density")
-    plt.title(f"Continuous DDM: mu={mu_cont}, sigma^2={sigma_sq_cont}, theta={theta_cont}")
+    plt.title(f"Poisson DDM: mu1={mu1_true}, mu2={mu2_true}, theta={theta_true}")
     plt.legend()
     plt.tight_layout()
     plt.show()
