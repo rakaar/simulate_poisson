@@ -10,7 +10,7 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 
 ### theoretical rtd poisson
 - poisson_ddm_RTD_check.py - Check poisson hit RTD
-
+- `bound_wise_skellam_rtd.py` - Bound-wise Skellam RTD
 ### Main Simulation Scripts
 - `sim.py` - Test - playground
 - `sim_parallel.py` - Poisson DDM - spike trains - inefficient
