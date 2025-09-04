@@ -23,7 +23,7 @@ elif param_type == 'vanilla':
 
 N_sim = int(25e3)
 
-ABL_arr = [20, 60]
+ABL_arr = [20, 40, 60]
 ILD_arr = [-16,-4, -2, 2, 4, 16]
 chi = 17.37
 

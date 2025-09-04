@@ -4,12 +4,21 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 
 ## Core Simulation Files
 
+### Theta scaling, right and left rate scaling to keep gamma,omega same
+- `scale_theta_and_check_when_poisson_breaks.py` - Simulate data where theta is scaled and left and right rates are scaled to keep gamma,omega same
+- `analyse_scaling_theta_data.py` - Analyse data from above
+
+### theoretical rtd poisson
+- poisson_ddm_RTD_check.py - Check poisson hit RTD
+
 ### Main Simulation Scripts
 - `sim.py` - Test - playground
 - `sim_parallel.py` - Poisson DDM - spike trains - inefficient
 - `sim_event_based.py` - Poisson DDM - efficient via spk times
 - `neural_and_ddm.py` - Test - poisson DDM
 - `check_sim.py` - Test - Simulate poisson spike trains
+
+
 
 ### Utility Files
 - `sim_utils.py` - spike timings and spike train generating funcs
