@@ -139,76 +139,14 @@ def fpt_cdf_skellam(t, mu1, mu2, theta):
         return float(cdf_arr.item())
     return cdf_arr
 
-def fpt_choice_skellam(mu1, mu2, bound):
+def fpt_choice_skellam(mu1, mu2, theta, choice):
     r = mu2 / mu1
     P_pos = (1 - r**theta) / (1 - r**(2*theta))
-    if bound == 1:
+    if choice == 1:
         return P_pos
-    elif bound == -1:
+    elif choice == -1:
         return 1 - P_pos
     else:
-        raise ValueError("bound must be +1 or -1")
+        raise ValueError("choice must be +1 or -1")
 
 
-def fpt_density_skellam(t, mu1, mu2, theta):
-    """
-    Calculates the exact First Passage Time (FPT) density for a Skellam process.
-    The process is dx = dN1 - dN2, with absorbing boundaries at +/- theta.
-
-    Parameters
-    ----------
-    t : array_like
-        Time points at which to evaluate the density (must be >= 0).
-    mu1 : float
-        Rate of the upward Poisson process (N1).
-    mu2 : float
-        Rate of the downward Poisson process (N2).
-    theta : int
-        Symmetric absorbing boundary location (positive integer).
-
-    Returns
-    -------
-    ft : np.ndarray
-        PDF values at times `t`.
-    """
-    t = np.asarray(t, dtype=float)
-
-    if np.any(t < 0):
-        raise ValueError("Time t cannot be negative.")
-    if not (isinstance(theta, (int, np.integer)) and theta > 0):
-        raise ValueError("Boundary theta must be a positive integer.")
-
-    ft = np.zeros_like(t, dtype=float)
-    M = 2 * theta - 1  # size of interior state space
-    j = np.arange(1, M + 1, dtype=float)  # 1..M
-
-    # sum over odd k = 1,3,5,...,M
-    for k in range(1, M + 1, 2):
-        # eigenvalue
-        lambda_k = -(mu1 + mu2) + 2.0 * np.sqrt(mu1 * mu2) * np.cos(k * np.pi / (2.0 * theta))
-
-        # right/left eigenvectors (unnormalized)
-        v_k = (mu1 / mu2) ** (j / 2.0) * np.sin(k * np.pi * j / (2.0 * theta))
-        u_k = (mu2 / mu1) ** (j / 2.0) * np.sin(k * np.pi * j / (2.0 * theta))
-
-        # projection coefficient c_k = (u_k' * 1) / (u_k' * v_k)
-        numerator = np.sum(u_k)
-        denominator = np.sum(u_k * v_k)
-
-        if np.abs(denominator) < 1e-12:
-            c_k = 0.0
-        else:
-            c_k = numerator / denominator
-
-        # start state x=0 corresponds to the theta-th component (1-based) -> index theta-1 (0-based)
-        v_k_theta = v_k[theta - 1]
-
-        # amplitude
-        A_k = -lambda_k * c_k * v_k_theta
-
-        # mode contribution
-        ft += A_k * np.exp(lambda_k * t)
-
-    # clamp tiny negative values due to floating point
-    ft[ft < 0] = 0.0
-    return ft

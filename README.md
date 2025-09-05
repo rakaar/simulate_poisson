@@ -11,6 +11,7 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 ### theoretical rtd poisson
 - poisson_ddm_RTD_check.py - Check poisson hit RTD
 - `bound_wise_skellam_rtd.py` - Bound-wise Skellam RTD
+
 ### Main Simulation Scripts
 - `sim.py` - Test - playground
 - `sim_parallel.py` - Poisson DDM - spike trains - inefficient
@@ -18,6 +19,12 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 - `neural_and_ddm.py` - Test - poisson DDM
 - `check_sim.py` - Test - Simulate poisson spike trains
 
+
+# vbmc 
+- vbmc_fit_skellam.py - skellam fit on data
+- vbmc_fit_skellam_SIM_data.py - VBMC fit on simulated Skellam data (fits logR, logL, theta)
+- vbmc_fit_skellam_SIM_data_theta_fixed_fit_logR_logL.py - Fix theta (1..50); fit logR & logL on simulated data; per-theta PKLs/logs
+- vbmc_skellam_utils.py - skellam pdf,cdf, choice
 
 
 ### Utility Files
