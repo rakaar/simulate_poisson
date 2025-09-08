@@ -1,4 +1,5 @@
 import numpy as np
+from math import erf
 
 def fpt_density_skellam(t, mu1, mu2, theta):
     """
@@ -150,3 +151,83 @@ def fpt_choice_skellam(mu1, mu2, theta, choice):
         raise ValueError("choice must be +1 or -1")
 
 
+def cum_pro_and_reactive_trunc_fn(
+        t, c_A_trunc_time,
+        V_A, theta_A, t_A_aff,
+        t_stim, t_E_aff, mu1, mu2, theta_E):
+    c_A = cum_A_t_fn(t-t_A_aff, V_A, theta_A)
+    if c_A_trunc_time is not None:
+        if t < c_A_trunc_time:
+            c_A = 0
+        else:
+            c_A  /= (1 - cum_A_t_fn(c_A_trunc_time - t_A_aff, V_A, theta_A))
+
+    # c_E = CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t - t_stim - t_E_aff, gamma, omega, 1, w, K_max) + \
+    #     CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t - t_stim - t_E_aff, gamma, omega, -1, w, K_max)
+
+    dt = t - t_stim - t_E_aff
+    if dt <= 0:
+        c_E = 0.0
+    else:
+        c_E = fpt_cdf_skellam(dt, mu1, mu2, theta_E)
+    
+    return c_A + c_E - c_A * c_E
+
+
+def Phi(x):
+    """
+    Define the normal cumulative distribution function Φ(x) using erf
+    """
+    return 0.5 * (1 + erf(x / np.sqrt(2)))
+
+def cum_A_t_fn(t, V_A, theta_A):
+    """
+    Proactive cdf, input time scalar, delays should be already subtracted before calling func
+    """
+    if t <= 0:
+        return 0
+
+    term1 = Phi(V_A * ((t) - (theta_A/V_A)) / np.sqrt(t))
+    term2 = np.exp(2 * V_A * theta_A) * Phi(-V_A * ((t) + (theta_A / V_A)) / np.sqrt(t))
+    
+    return term1 + term2
+
+def rho_A_t_fn(t, V_A, theta_A):
+    """
+    Proactive PDF, takes input as scalar, delays should be already subtracted before calling func
+    """
+    if t <= 0:
+        return 0
+    return (theta_A*1/np.sqrt(2*np.pi*(t)**3))*np.exp(-0.5 * (V_A**2) * (((t) - (theta_A/V_A))**2)/(t))
+
+def up_or_down_hit_fn(t, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, bound):
+    """
+    PDF of all RTs array irrespective of choice
+    bound == choice = +1/-1
+    """
+    t2 = t - t_stim - t_E_aff + del_go
+    t1 = t - t_stim - t_E_aff
+
+    P_A = rho_A_t_fn(t - t_A_aff, V_A, theta_A)
+    # prob_EA_hits_either_bound = CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t - t_stim - t_E_aff + del_go,\
+    #                                                                      gamma, omega, 1, w, K_max) \
+    #                          + CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t - t_stim - t_E_aff + del_go,\
+    #                                                                      gamma, omega, -1, w, K_max)
+    prob_EA_hits_either_bound = fpt_cdf_skellam(t - t_stim - t_E_aff + del_go, mu1, mu2, theta_E)
+    
+    prob_EA_survives = 1 - prob_EA_hits_either_bound
+    random_readout_if_EA_surives = 0.5 * prob_EA_survives
+    # P_E_plus_or_minus_cum = CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t2, gamma, omega, bound, w, K_max) \
+    #                 - CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t1, gamma, omega, bound, w, K_max)
+    p_choice = fpt_choice_skellam(mu1, mu2, theta_E, bound)
+    # Safe CDF values with negative times treated as 0
+    c2 = 0.0 if t2 <= 0 else fpt_cdf_skellam(t2, mu1, mu2, theta_E)
+    c1 = 0.0 if t1 <= 0 else fpt_cdf_skellam(t1, mu1, mu2, theta_E)
+    P_E_plus_or_minus_cum = p_choice * (c2 - c1)
+    
+    # P_E_plus_or_minus = rho_E_minus_small_t_NORM_omega_gamma_with_w_fn(t-t_E_aff-t_stim, gamma, omega, bound, w, K_max)
+    dt_pdf = t - t_E_aff - t_stim
+    P_E_plus_or_minus = (0.0 if dt_pdf <= 0 else float(fpt_density_skellam(dt_pdf, mu1, mu2, theta_E))) * p_choice
+
+    C_A = cum_A_t_fn(t - t_A_aff, V_A, theta_A)
+    return (P_A*(random_readout_if_EA_surives + P_E_plus_or_minus_cum) + P_E_plus_or_minus*(1-C_A))
