@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import random
+from joblib import Parallel, delayed
 from scipy.integrate import trapezoid as trapz
 from pyvbmc import VBMC
 from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -173,8 +174,7 @@ def vbmc_prior_fn(params):
     return - (np.log(logR_width) + np.log(logL_width))
 
 # %%
-# all_ABLs_cond = [20, 40, 60]
-all_ABLs_cond = [40]
+all_ABLs_cond = [20, 40, 60]
 all_ILDs_cond = [1, -1, 2, -2, 4, -4, 8, -8, 16, -16]
 vbmc_fit_saving_path = 'real_data_cond_wise_theta_fixed'
 K_max = 10
@@ -206,7 +206,8 @@ for batch_name, animal_id in batch_animal_pairs:
     t_A_aff = abort_params['t_A_aff']
 
     # get the database from batch_csvs
-    file_name = f'../fit_animal_by_animal/batch_csvs/batch_{batch_name}_valid_and_aborts.csv'
+    # file_name = f'../fit_animal_by_animal/batch_csvs/batch_{batch_name}_valid_and_aborts.csv'
+    file_name = f'/home/rlab/raghavendra/ddm_data/fit_animal_by_animal/batch_csvs/batch_{batch_name}_valid_and_aborts.csv'
     df = pd.read_csv(file_name)
     df_animal = df[df['animal'] == int(animal_id)]
     df_animal_success = df_animal[df_animal['success'].isin([1, -1])]
