@@ -5,3 +5,5 @@ venv/
 *.pkl
 *.csv
 *.txt
+*.npy
+*.npz
