@@ -28,8 +28,10 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 - vbmc_fit_skellam_SIM_data_theta_fixed_fit_logR_logL.py - Fix theta (1..50); fit logR & logL on simulated data; per-theta PKLs/logs
 - analyse_vbmc_fit_poisson_fixed_theta.py - Analyse VBMC fit on simulated Skellam data (fits logR, logL, theta)
 
+## real data fit and analysis
 - vbmc_skellam_utils.py - skellam pdf,cdf, choice
-
+- `vbmc_fit_skellam_exp_data_theta_fixed_fit_logR_logL.py` - on real data single animal, per condition, fix 50 thetas and find fit logR, logL
+- analyse_vbmc_real_data_fit_cond_by_cond.py - Analyse VBMC fit on real data (fits logR, logL, theta)
 
 
 ### Utility Files

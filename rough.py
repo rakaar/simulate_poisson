@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 r = np.arange(0.001, 80, 0.1)
 
 # theta = 40
-theta_vals = [5, 20, 40]
+theta_vals = [1,2,3, 5, 20, 40]
 
 fig, axes = plt.subplots(1, len(theta_vals), figsize=(5 * len(theta_vals), 4), sharex=True, sharey=True)
 if len(theta_vals) == 1:

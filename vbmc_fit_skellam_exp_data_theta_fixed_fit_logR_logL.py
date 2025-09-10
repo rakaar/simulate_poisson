@@ -215,8 +215,18 @@ for batch_name, animal_id in batch_animal_pairs:
 
     for cond_ABL in all_ABLs_cond:
         for cond_ILD in all_ILDs_cond:
-            # Create per-condition directory
             condition_dir = os.path.join(vbmc_fit_saving_path, f'ABL_{cond_ABL}_ILD_{cond_ILD}')
+            # Determine exactly which theta files are missing, and skip the condition only if none are missing
+            missing_thetas = None
+            if os.path.isdir(condition_dir):
+                missing_thetas = [theta for theta in range(1, 51)
+                                  if not os.path.exists(os.path.join(condition_dir, f'ABL_{cond_ABL}_ILD_{cond_ILD}_theta{theta:02d}.pkl'))]
+                if len(missing_thetas) == 0:
+                    print(f"Condition ABL={cond_ABL}, ILD={cond_ILD} already complete (50/50 PKLs); skipping...")
+                    continue
+                else:
+                    print(f"Condition ABL={cond_ABL}, ILD={cond_ILD} missing thetas: {missing_thetas}")
+            # Ensure the directory exists and proceed to fill missing thetas (or all if new)
             os.makedirs(condition_dir, exist_ok=True)
 
             print('********************************')
@@ -239,8 +249,9 @@ for batch_name, animal_id in batch_animal_pairs:
             plb = np.array([logR_plausible_bounds[0], logL_plausible_bounds[0]])
             pub = np.array([logR_plausible_bounds[1], logL_plausible_bounds[1]])
 
-            # Loop over fixed theta values 1..50
-            for theta_fixed in range(1, 51):
+            # Loop over fixed theta values: only the missing ones (or all if new)
+            target_thetas = missing_thetas if (missing_thetas is not None) else list(range(1, 51))
+            for theta_fixed in target_thetas:
                 out_pkl = os.path.join(condition_dir, f'ABL_{cond_ABL}_ILD_{cond_ILD}_theta{theta_fixed:02d}.pkl')
                 if os.path.exists(out_pkl):
                     print(f'{out_pkl} already exists, skipping')
@@ -272,6 +283,7 @@ for batch_name, animal_id in batch_animal_pairs:
                 vp, results = vbmc.optimize()
 
                 # Save VBMC result for this condition and theta
+                os.makedirs(os.path.dirname(out_pkl), exist_ok=True)
                 vbmc.save(out_pkl, overwrite=True)
                 print(f'Saved: {out_pkl}')
 
