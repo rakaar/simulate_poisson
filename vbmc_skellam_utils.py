@@ -149,6 +149,7 @@ def fpt_cdf_skellam(t, mu1, mu2, theta):
     # For negative times, CDF remains 0 (as initialized)
     cdf_arr = 1.0 - s0
     cdf_arr = np.clip(cdf_arr, 0.0, 1.0)
+    cdf_arr[~non_negative_mask] = 0.0 
 
     # Return scalar if input was scalar
     if np.isscalar(t):
@@ -507,7 +508,9 @@ def truncated_cum_A_t_fn(t, V_A, theta_A, trunc_time):
         survival_prob = 1.0 - cdf_at_trunc
         # Avoid division by zero
         if survival_prob > 0:
-            result[mask] = (cum_A_t_fn(t[mask], V_A, theta_A) - cdf_at_trunc) / survival_prob
+            # result[mask] = (cum_A_t_fn(t[mask], V_A, theta_A) - cdf_at_trunc) / survival_prob
+            result[mask] = (cum_A_t_fn(t[mask], V_A, theta_A)) / survival_prob
+
     
     # Return scalar if input was scalar
     if np.isscalar(t):
@@ -532,7 +535,7 @@ def up_or_down_hit_wrt_tstim_V3(t_pts_wrt_stim, V_A, theta_A, t_A_aff, t_stim_sa
         area_down = np.trapezoid(down1, t_pts_wrt_stim)
 
         total_area = area_up + area_down
-        print(f'total area = {total_area}')
+        # print(f'total area = {total_area}')
 
         up_samples[idx, :] = up1 / total_area
         down_samples[idx, :] = down1 / total_area

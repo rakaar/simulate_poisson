@@ -393,8 +393,13 @@ def plot_rt_dists_grid(
                     #     t_pts, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go, R_mean, L_mean, int(theta_best), c_A_trunc_time
                     # )
                     # V2 version
-                    t_pts_0_1 = np.arange(-5, 5+0.001, 0.001)
+                    t_pts_0_1 = np.arange(0, 1+0.001, 0.001)
                     # up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim_V2(t_pts_0_1, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go, R_mean, L_mean, int(theta_best), c_A_trunc_time)
+                    ### TEMP NOTE ##############
+                    # t_A_aff = 0
+                    # t_E_aff = 0
+                    # del_go = 0
+                    # t_stim_vals = np.zeros_like(t_stim_vals)
                     up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim_V3(t_pts_0_1, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go, R_mean, L_mean, int(theta_best), c_A_trunc_time)
                     ax.step(t_pts_0_1, up_theory_mean_norm, where='post', color='C1', label='THEORY +1')
                     ax.step(t_pts_0_1, -down_theory_mean_norm, where='post', color='C1', linestyle='--', label='THEORY -1')
