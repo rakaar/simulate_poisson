@@ -400,7 +400,12 @@ def plot_rt_dists_grid(
                     # t_E_aff = 0
                     # del_go = 0
                     # t_stim_vals = np.zeros_like(t_stim_vals)
-                    up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim_V3(t_pts_0_1, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go, R_mean, L_mean, int(theta_best), c_A_trunc_time)
+                    up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim_V3(
+                        t_pts_0_1, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go,
+                        R_mean, L_mean, int(theta_best), c_A_trunc_time
+                    )
+                    print(f"Params: V_A={V_A}, theta_A={theta_A}, t_A_aff={t_A_aff}, t_E_aff={t_E_aff}, del_go={del_go}, "
+                          f"R_mean={R_mean}, L_mean={L_mean}, theta_best={theta_best}, c_A_trunc_time={c_A_trunc_time}")
                     ax.step(t_pts_0_1, up_theory_mean_norm, where='post', color='C1', label='THEORY +1')
                     ax.step(t_pts_0_1, -down_theory_mean_norm, where='post', color='C1', linestyle='--', label='THEORY -1')
                     print(f'R_mean = {R_mean:.3f}, L_mean = {L_mean:.3f}')
