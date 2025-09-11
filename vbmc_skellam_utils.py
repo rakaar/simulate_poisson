@@ -25,6 +25,8 @@ def fpt_density_skellam(t, mu1, mu2, theta):
         PDF values at times `t`. For negative times, PDF is set to 0.
     """
     t = np.asarray(t, dtype=float)
+    scalar_input = np.isscalar(t)
+    t = np.atleast_1d(t).astype(float)
 
     if not (isinstance(theta, (int, np.integer)) and theta > 0):
         raise ValueError("Boundary theta must be a positive integer.")
@@ -70,6 +72,8 @@ def fpt_density_skellam(t, mu1, mu2, theta):
 
     # clamp tiny negative values due to floating point
     ft[ft < 0] = 0.0
+    if scalar_input:
+        return float(ft.item())
     return ft
 
 def fpt_cdf_skellam(t, mu1, mu2, theta):
@@ -96,6 +100,8 @@ def fpt_cdf_skellam(t, mu1, mu2, theta):
     """
     # Convert and validate inputs
     t_arr = np.asarray(t, dtype=float)
+    scalar_input = np.isscalar(t)
+    t_arr = np.atleast_1d(t_arr).astype(float)
     if theta <= 0 or int(theta) != theta:
         raise ValueError("Boundary theta must be a positive integer.")
     if mu1 <= 0 or mu2 <= 0:
@@ -152,7 +158,7 @@ def fpt_cdf_skellam(t, mu1, mu2, theta):
     cdf_arr[~non_negative_mask] = 0.0 
 
     # Return scalar if input was scalar
-    if np.isscalar(t):
+    if scalar_input:
         return float(cdf_arr.item())
     return cdf_arr
 
