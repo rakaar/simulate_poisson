@@ -51,7 +51,7 @@ def _worker_chunk(start: int, end: int, seed: int):
     for idx, i in enumerate(range(start, end)):
         # proactive trial
         pro_dv = 0.0
-        t_pro = t_A_aff
+        t_pro = t_A_aff 
         while True:
             pro_dv += V_A * dt + local_rng.normal(0.0, dB)
             t_pro += dt
@@ -60,7 +60,7 @@ def _worker_chunk(start: int, end: int, seed: int):
 
         # reactive hit time
         t_skellam = skellam_times[i]
-        t_skellam_with_delay = t_skellam - t_E_aff - stim_times[i]
+        t_skellam_with_delay = t_skellam + t_E_aff + stim_times[i]
         if t_skellam_with_delay < 0:
             t_skellam_with_delay = np.inf
 
@@ -85,7 +85,7 @@ def _worker_chunk(start: int, end: int, seed: int):
         else:
             raise ValueError(f'unknown case (skellam with delay = {t_skellam_with_delay}, t_pro = {t_pro})')
 
-    return times_out, choices_out, proactive_count, reactive_count
+    return times_out, choices_out, proactive_count, reactive_count, stim_times[i]
 
 V_A=1.1774684269283593
 theta_A=1
@@ -195,7 +195,7 @@ for i in range(N_TRIALS):
 
 
 # Run trials in parallel
-pro_and_skellam = np.zeros((N_TRIALS, 2))
+pro_and_skellam = np.zeros((N_TRIALS, 3))
 proactive_win_count = 0
 reactive_win_count = 0
 
@@ -211,16 +211,16 @@ with ProcessPoolExecutor(max_workers=n_workers) as ex:
         jobs.append((start, end, ex.submit(_worker_chunk, start, end, seed)))
 
     for start, end, fut in jobs:
-        times_out, choices_out, pro_c, re_c = fut.result()
+        times_out, choices_out, pro_c, re_c, stim_times_in_pro_skellam = fut.result()
         pro_and_skellam[start:end, 0] = times_out
         pro_and_skellam[start:end, 1] = choices_out
+        pro_and_skellam[start:end, 2] = stim_times_in_pro_skellam
         proactive_win_count += pro_c
         reactive_win_count += re_c
 
 print(f'pro win count = {proactive_win_count}')
 print(f'reactive win count = {reactive_win_count}')
 # %%
-# t
 # sample 1000 t_stim from stim_times
 from vbmc_skellam_utils import up_or_down_hit_fn
 N_theory = int(1e3)
@@ -241,7 +241,7 @@ for idx, t_stim in enumerate(sampled_stim_times):
 
 # %%
 bins = np.arange(-5, 5, 0.05)
-plt.hist(pro_and_skellam[:, 0] - stim_times, bins=bins, density=True, histtype='step');
+plt.hist(pro_and_skellam[:, 0] - stim_times, bins=bins, density=True, histtype='step',lw=2);
 theory_mean = np.mean(up_and_down_density, axis=0)
 plt.plot(t_pts_wrt_stim, theory_mean, 'r', alpha=0.5, lw=3, ls='--')
 cont_rt_wrt_stim = cont_rts - cont_stim_times
@@ -251,3 +251,132 @@ plt.show()
 # %%
 area_theory = np.trapezoid(theory_mean, t_pts_wrt_stim)
 print(f'theory area = {area_theory}')
+
+
+# %%
+################################
+### PARALLEL VERSION ###########
+################################
+
+from vbmc_skellam_utils import cum_pro_and_reactive_trunc_fn, up_or_down_hit_truncated_proactive_fn
+
+c_A_trunc_time = 0
+t_pts_0_1 = np.arange(-5,5,0.001)
+sampled_stim_times = rng.choice(stim_times, size=N_theory, replace=True)
+truncated_up_down_density = np.zeros((N_theory, len(t_pts_0_1)))
+def _trunc_density_worker_chunk(t_stims_chunk):
+    out = np.empty((len(t_stims_chunk), len(t_pts_0_1)), dtype=float)
+    for j, t_stim in enumerate(t_stims_chunk):
+        t_pts_wrt_fix = t_pts_0_1 + t_stim
+        # trunc_factor_p_joint = cum_pro_and_reactive_trunc_fn(
+        #                             t_stim + 1, c_A_trunc_time,
+        #                             V_A, theta_A, t_A_aff,
+        #                             t_stim, t_E_aff, R_true, L_true, theta_true) - \
+        #                         cum_pro_and_reactive_trunc_fn(
+        #                             t_stim, c_A_trunc_time,
+        #                             V_A, theta_A, t_A_aff,
+        #                             t_stim, t_E_aff, R_true, L_true, theta_true)
+
+        vals = up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, R_true, L_true, theta_true, c_A_trunc_time, 1) \
+               + up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, R_true, L_true, theta_true, c_A_trunc_time, -1)
+        # out[j, :] = vals / trunc_factor_p_joint
+        out[j, :] = vals
+    return out
+
+# Parallelize across t_stim samples
+n_workers = os.cpu_count() or 2
+chunk_size_theory = max(1, (N_theory + n_workers - 1) // n_workers)
+jobs = []
+with ProcessPoolExecutor(max_workers=n_workers) as ex:
+    for start in range(0, N_theory, chunk_size_theory):
+        end = min(start + chunk_size_theory, N_theory)
+        chunk = sampled_stim_times[start:end]
+        jobs.append((start, end, ex.submit(_trunc_density_worker_chunk, chunk)))
+    for start, end, fut in jobs:
+        truncated_up_down_density[start:end, :] = fut.result()
+# %%
+####################################
+####### SERIAl VErSION #############
+####################################
+# Serial computation of truncated_up_down_density for the same sampled_stim_times
+truncated_up_down_density_serial = np.empty_like(truncated_up_down_density)
+for idx, t_stim in enumerate(sampled_stim_times):
+    t_pts_wrt_fix = t_pts_0_1 + t_stim
+    vals = up_or_down_hit_truncated_proactive_fn(
+        t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff,
+        del_go, R_true, L_true, theta_true, c_A_trunc_time, 1
+    ) + up_or_down_hit_truncated_proactive_fn(
+        t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff,
+        del_go, R_true, L_true, theta_true, c_A_trunc_time, -1
+    )
+    truncated_up_down_density_serial[idx, :] = vals
+
+# Quick consistency check vs parallel result (optional)
+try:
+    max_abs_diff = float(np.max(np.abs(truncated_up_down_density_serial - truncated_up_down_density)))
+    print(f'Serial vs parallel max abs diff: {max_abs_diff:.3e}')
+except Exception as _e:
+    pass
+# %%
+truncated_up_density_mean = np.mean(truncated_up_down_density_serial, axis=0)
+plt.plot(t_pts_0_1, truncated_up_density_mean, 'r', alpha=0.5, lw=3, ls='--')
+plt.show()
+print(f'area = {np.trapezoid(truncated_up_density_mean, t_pts_0_1)}')
+
+# %%
+rt_pro_and_skellam = pro_and_skellam[:, 0] 
+stim_pro_and_skellam = pro_and_skellam[:, 2]
+
+# trials where responses are < stim_pro
+idx = rt_pro_and_skellam < stim_pro_and_skellam
+# trials where rt_pro_and_skellam < 0.3
+idx2 = rt_pro_and_skellam < c_A_trunc_time
+# intersection of idx1 and idx2
+idx3 = idx & idx2
+print(f'idx3 count = {np.sum(idx3)}')
+# removing idx3 from pro_and_skellam
+pro_and_skellam_filtered = pro_and_skellam[~idx3]
+# rt - tstim in fileted
+rt_wrt_stim_pro_and_skellam_filtered = pro_and_skellam_filtered[:, 0] - pro_and_skellam_filtered[:, 2]
+
+# rt_wrt_stim_pro_and_skellam_filtered btn 0 and 1
+# idx4 = rt_wrt_stim_pro_and_skellam_filtered >= 0
+# idx5 = rt_wrt_stim_pro_and_skellam_filtered <= 1
+# idx6 = idx4 & idx5
+# rt_wrt_stim_pro_and_skellam_filtered_1 = rt_wrt_stim_pro_and_skellam_filtered[idx6]
+rt_wrt_stim_pro_and_skellam_filtered_1 = rt_wrt_stim_pro_and_skellam_filtered
+# %%
+plt.plot(t_pts_0_1, truncated_up_density_mean, 'r', alpha=0.5, lw=3, ls='--')
+plt.hist(rt_wrt_stim_pro_and_skellam_filtered_1, bins=np.arange(-2, 2, 0.01), density=True, histtype='step',lw=2);
+
+
+
+# %%
+# truncated zero should be same as truncated rho A t  fn
+from vbmc_skellam_utils import truncated_rho_A_t_fn, rho_A_t_fn
+
+t_pts_test = np.arange(-10,10,0.001)
+print(f'trunc time = {c_A_trunc_time}')
+trunc_pro_density = truncated_rho_A_t_fn(t_pts_test, V_A, theta_A, c_A_trunc_time)
+regular_pro_density  = rho_A_t_fn(t_pts_test, V_A, theta_A)
+
+plt.plot(t_pts_test, trunc_pro_density, 'r')
+plt.plot(t_pts_test, regular_pro_density, 'g', alpha=0.5, lw=3, ls='--')
+plt.legend(['truncated', 'regular'])
+plt.show()
+# %%
+# truncated cdf should be saME AS cum trapz of truncated density
+from vbmc_skellam_utils import truncated_cum_A_t_fn, cum_A_t_fn
+
+trunc_pro_cdf = truncated_cum_A_t_fn(t_pts_test, V_A, theta_A, c_A_trunc_time)
+regular_pro_cdf = cum_A_t_fn(t_pts_test, V_A, theta_A)
+
+plt.plot(t_pts_test, trunc_pro_cdf, 'r')
+plt.plot(t_pts_test, regular_pro_cdf, 'g', alpha=0.5, lw=3, ls='--')
+plt.legend(['truncated', 'regular'])
+plt.show()
+
+# %%
+plt.plot(t_pts_wrt_stim, theory_mean, 'r', alpha=0.5, lw=3, ls='--')
+plt.plot(t_pts_0_1, truncated_up_density_mean, 'g', alpha=0.5, lw=3, ls='--')
+plt.show()

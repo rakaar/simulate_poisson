@@ -182,6 +182,7 @@ def cum_pro_and_reactive_trunc_fn(
         if t < c_A_trunc_time:
             c_A = 0
         else:
+            c_A -= cum_A_t_fn(c_A_trunc_time - t_A_aff, V_A, theta_A)
             c_A  /= (1 - cum_A_t_fn(c_A_trunc_time - t_A_aff, V_A, theta_A))
 
     # c_E = CDF_E_minus_small_t_NORM_omega_gamma_with_w_fn(t - t_stim - t_E_aff, gamma, omega, 1, w, K_max) + \
@@ -514,8 +515,7 @@ def truncated_cum_A_t_fn(t, V_A, theta_A, trunc_time):
         survival_prob = 1.0 - cdf_at_trunc
         # Avoid division by zero
         if survival_prob > 0:
-            # result[mask] = (cum_A_t_fn(t[mask], V_A, theta_A) - cdf_at_trunc) / survival_prob
-            result[mask] = (cum_A_t_fn(t[mask], V_A, theta_A)) / survival_prob
+            result[mask] = (cum_A_t_fn(t[mask], V_A, theta_A) - cdf_at_trunc) / survival_prob
 
     
     # Return scalar if input was scalar
@@ -552,6 +552,43 @@ def up_or_down_hit_wrt_tstim_V3(t_pts_wrt_stim, V_A, theta_A, t_A_aff, t_stim_sa
 def up_or_down_hit_truncated_proactive_fn(t, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, proactive_trunc_time, bound):
     t2 = t - t_stim - t_E_aff + del_go
     t1 = t - t_stim - t_E_aff
+
+    P_A = truncated_rho_A_t_fn(t - t_A_aff, V_A, theta_A, proactive_trunc_time)
+    prob_EA_hits_either_bound = fpt_cdf_skellam(t - t_stim - t_E_aff + del_go, mu1, mu2, theta_E)
+    
+    prob_EA_survives = 1 - prob_EA_hits_either_bound
+    random_readout_if_EA_surives = 0.5 * prob_EA_survives
+    p_choice = fpt_choice_skellam(mu1, mu2, theta_E, bound)
+    
+    # Safe CDF values with negative times treated as 0 - vectorized version
+    c2 = np.zeros_like(t2, dtype=float)
+    c1 = np.zeros_like(t1, dtype=float)
+    mask2 = t2 > 0
+    mask1 = t1 > 0
+    if np.any(mask2):
+        c2[mask2] = fpt_cdf_skellam(t2[mask2], mu1, mu2, theta_E)
+    if np.any(mask1):
+        c1[mask1] = fpt_cdf_skellam(t1[mask1], mu1, mu2, theta_E)
+    P_E_plus_or_minus_cum = p_choice * (c2 - c1)
+    
+    # P_E_plus_or_minus = rho_E_minus_small_t_NORM_omega_gamma_with_w_fn(t-t_E_aff-t_stim, gamma, omega, bound, w, K_max)
+    dt_pdf = t - t_E_aff - t_stim
+    P_E_plus_or_minus = np.zeros_like(dt_pdf, dtype=float)
+    mask_pdf = dt_pdf > 0
+    if np.any(mask_pdf):
+        P_E_plus_or_minus[mask_pdf] = fpt_density_skellam(dt_pdf[mask_pdf], mu1, mu2, theta_E)
+    P_E_plus_or_minus *= p_choice
+
+    # C_A = cum_A_t_fn(t - t_A_aff, V_A, theta_A)
+    C_A = truncated_cum_A_t_fn(t - t_A_aff, V_A, theta_A, proactive_trunc_time)
+    return (P_A*(random_readout_if_EA_surives + P_E_plus_or_minus_cum) + P_E_plus_or_minus*(1-C_A))
+
+
+def up_or_down_hit_truncated_proactive_V2_fn(t, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, proactive_trunc_time, bound):
+    t2 = t - t_stim - t_E_aff + del_go
+    t1 = t - t_stim - t_E_aff
+    if proactive_trunc_time > t_stim:
+        proactive_trunc_time = 0
 
     P_A = truncated_rho_A_t_fn(t - t_A_aff, V_A, theta_A, proactive_trunc_time)
     prob_EA_hits_either_bound = fpt_cdf_skellam(t - t_stim - t_E_aff + del_go, mu1, mu2, theta_E)
