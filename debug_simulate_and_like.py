@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from simulators import simulate_pro_skellam_trial, cont_ddm_simulate, simulate_skellam_trial
 from joblib import Parallel, delayed
-from vbmc_skellam_utils import up_or_down_hit_fn, up_or_down_hit_truncated_proactive_fn
+from vbmc_skellam_utils import up_or_down_hit_fn
 from vbmc_skellam_utils import cum_pro_and_reactive_trunc_fn
 from vbmc_skellam_utils import fpt_choice_skellam, fpt_cdf_skellam, fpt_density_skellam
 from vbmc_skellam_utils import truncated_cum_A_t_fn, truncated_rho_A_t_fn
@@ -29,12 +29,12 @@ def _run_cont_ddm_indexed(i, V_A, theta_A, t_A_aff, dt, dB, t_E_aff, del_go, t_s
 # PARAMS
 V_A=1.1
 theta_A=1
-t_A_aff=0.04
+t_A_aff=0.1
 dt = 1e-4
 dB = 1e-2
 
 t_E_aff = 0.073
-del_go = 0.1
+del_go = 0.13
 
 mu1=160
 mu2=140
@@ -42,6 +42,8 @@ theta_E=11
 # %%
 N_sim = int(100e3)
 t_stim_for_sim = np.random.exponential(scale=0.4, size=N_sim) + 0.2
+# t_stim_for_sim = np.zeros(N_sim)
+# t_stim_for_sim = np.ones(N_sim) * 0.25
 
 skellam_RT_choice = np.zeros((N_sim, 2))
 pro_skellam_RT_choice = np.zeros((N_sim, 2))
@@ -101,50 +103,11 @@ plt.show()
 # %%
 # theoretical likelihood
 N_theory = int(10e3)
-# %%
-t_pts_wrt_stim = np.arange(-5, 5, 0.001)
-
-t_stim_for_theory = np.random.choice(t_stim_for_sim, size=N_theory, replace=True)
-theory_pro_skellam_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
-
-for idx, t_stim in enumerate(t_stim_for_theory):
-    t_pts_wrt_fix = t_pts_wrt_stim + t_stim
-    # theory_pro_skellam_samples[idx, :] = \
-    #     [ up_or_down_hit_fn(rt, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, 1) \
-    #     + up_or_down_hit_fn(rt, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, -1) \
-    #      for rt in t_pts_wrt_fix]
-    up = up_or_down_hit_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, 1) 
-    down = up_or_down_hit_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, -1)
-    theory_pro_skellam_samples[idx, :] = up + down
-
-# %%
-theory_pro_skellam_mean = np.mean(theory_pro_skellam_samples, axis=0)
-plt.plot(t_pts_wrt_stim, theory_pro_skellam_mean, 'r', alpha=0.5, lw=3, ls='--')
-plt.hist(pro_skellam_RT_wrt_stim, bins=bins, label='Pro Skellam', density=True, histtype='step', color='b')
-plt.show()
-
-# %%
-# Truncated likelihood, but truncation time = 0
-c_A_trunc_time = 0
-truncated_theory_pro_skellam_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
-for j, t_stim in enumerate(t_stim_for_theory):
-    t_pts_wrt_fix = t_pts_wrt_stim + t_stim
-    truncated_theory_pro_skellam_samples[j, :] = \
-        up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1) \
-        + up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
-# %%
-plt.scatter(t_pts_wrt_stim, truncated_theory_pro_skellam_samples.mean(axis=0), alpha=0.6, color='g', label='Truncated Theory (mean)')
-plt.plot(t_pts_wrt_stim, theory_pro_skellam_mean, 'r', alpha=0.5, lw=3, ls='--', label='Theory')
-plt.hist(pro_skellam_RT_wrt_stim, bins=bins, label='Pro Skellam', density=True, histtype='step', color='b')
-plt.title('Truncation Time = 0: Theory vs Simulated', fontsize=14)
-plt.legend()
-plt.show()
-
 
 # %%
 ### TRUNCATION TEST
-c_A_trunc_time = 0.5
-t_pts_wrt_stim = np.arange(-5, 5, 0.001)
+c_A_trunc_time = 0.3
+t_pts_wrt_stim = np.arange(-2, 2, 0.001)
 t_stim_for_theory = np.random.choice(t_stim_for_sim, size=N_theory, replace=True)
 
 actual_truncated_theory_pro_skellam_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
@@ -156,7 +119,7 @@ for j, t_stim in enumerate(t_stim_for_theory):
         
         # up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1) \
         # + up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
- 
+        
         
         
         
@@ -184,16 +147,211 @@ plt.figure(figsize=(8, 4))
 plt.hist(pro_skellam_truncated_RT_wrt_stim, bins=bins, label='Pro Skellam Truncated', density=True, histtype='step', color='C0')
 plt.hist(cont_DDM_truncated_RT_wrt_stim, bins=bins, label='Cont DDM Truncated', density=True, histtype='step', color='C1', lw=2, linestyle='dashed')
 # plt.plot(t_pts_wrt_stim, actual_truncated_mean, color='C3', lw=3, linestyle='-.', alpha=0.8, label='Theory Truncated')
-plt.scatter(t_pts_wrt_stim, actual_truncated_mean_norm, color='C3', alpha=0.4, label='Theory Truncated', s=7)
-plt.legend()
+plt.scatter(t_pts_wrt_stim, actual_truncated_mean_norm, color='C3', alpha=0.9, label='Theory Truncated', s=7)
 plt.xlim(-1,1)
 plt.xlabel('RT - t_stim')
-plt.axvline(0, color='C1', lw=2, linestyle='dashed', alpha=0.5)
+plt.axvline(0, color='C1', lw=2, linestyle='dashed', alpha=0.5, label='0')
+plt.axvline(t_E_aff, color='C4', lw=2, linestyle='dashed', alpha=0.5, label='t_E_aff')
+plt.axvline(c_A_trunc_time, color='C5', lw=2, linestyle='dashed', alpha=0.5, label='c_A_trunc_time')
 
-plt.axvline(t_E_aff, color='C1', lw=2, linestyle='dashed', alpha=0.5)
+plt.axvline(t_A_aff, color='k', lw=2, linestyle='dashed', alpha=0.5, label='t_A_aff')
+plt.legend()
+
 plt.ylabel('Density')
 plt.title(f'trunc time {c_A_trunc_time}')
 plt.tight_layout()
+plt.show()
+
+# %%
+# up and down seperately
+# skellam
+rt_values = pro_skellam_RT_choice[:, 0]
+rt_choices = pro_skellam_RT_choice[:, 1]
+remove_mask = (rt_values < t_stim_for_sim) & (rt_values < c_A_trunc_time)
+pro_skellam_truncated_RT_wrt_stim = rt_values[~remove_mask] - t_stim_for_sim[~remove_mask]
+pro_skellam_choices = rt_choices[~remove_mask]
+# up and down seperately
+up_mask = pro_skellam_choices == 1
+down_mask = pro_skellam_choices == -1
+up_rt_values = pro_skellam_truncated_RT_wrt_stim[up_mask]
+down_rt_values = pro_skellam_truncated_RT_wrt_stim[down_mask]
+N_up = len(up_rt_values)
+N_down = len(down_rt_values)
+N_total = N_up + N_down
+bins = np.arange(-2,2,0.01)
+up_hist_skellam, _  = np.histogram(up_rt_values, bins=bins, density=True)
+down_hist_skellam, _ = np.histogram(down_rt_values, bins=bins, density=True)
+
+plt.plot(bins[:-1], up_hist_skellam * (N_up / N_total), 'r', label='up skellam')
+plt.plot(bins[:-1], -down_hist_skellam * (N_down / N_total), 'r', label='down skellam')
+
+
+
+# Same for cont DDM
+rt_values_cont = cont_DDM_RT_choice[:, 0]
+rt_choices_cont = cont_DDM_RT_choice[:, 1]
+remove_mask_cont = (rt_values_cont < t_stim_for_sim) & (rt_values_cont < c_A_trunc_time)
+cont_DDM_truncated_RT_wrt_stim = rt_values_cont[~remove_mask_cont] - t_stim_for_sim[~remove_mask_cont]
+cont_DDM_choices = rt_choices_cont[~remove_mask_cont]
+# up and down seperately
+up_mask = cont_DDM_choices == 1
+down_mask = cont_DDM_choices == -1
+up_rt_values = cont_DDM_truncated_RT_wrt_stim[up_mask]
+down_rt_values = cont_DDM_truncated_RT_wrt_stim[down_mask]
+N_up = len(up_rt_values)
+N_down = len(down_rt_values)
+N_total = N_up + N_down
+bins = np.arange(-2,2,0.01)
+up_hist_cont, _  = np.histogram(up_rt_values, bins=bins, density=True)
+down_hist_cont, _ = np.histogram(down_rt_values, bins=bins, density=True)
+
+plt.plot(bins[:-1], up_hist_cont * (N_up / N_total), 'b', label='up cont DDM')
+plt.plot(bins[:-1], -down_hist_cont * (N_down / N_total), 'b', label='down cont DDM')
+plt.legend()
+
+# theory
+t_pts_wrt_stim = np.arange(-2,2,0.001)
+t_stim_for_theory = np.random.choice(t_stim_for_sim, size=N_theory, replace=True)
+up_theory_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
+down_theory_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
+for j, t_stim in enumerate(t_stim_for_theory):
+    t_pts_wrt_fix = t_pts_wrt_stim + t_stim
+    up_theory_samples[j, :] = \
+        up_or_down_hit_truncated_proactive_V2_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1)
+    down_theory_samples[j, :] = \
+        up_or_down_hit_truncated_proactive_V2_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
+    
+up_samples_mean = up_theory_samples.mean(axis=0)
+down_samples_mean = down_theory_samples.mean(axis=0)
+plt.plot(t_pts_wrt_stim, up_samples_mean, 'k', label='up theory', ls='--', lw=3)
+plt.plot(t_pts_wrt_stim, -down_samples_mean, 'k', label='down theory', ls='--', lw=3)
+plt.show()
+
+# %%
+# up and down seperately
+# skellam
+rt_values = pro_skellam_RT_choice[:, 0]
+rt_choices = pro_skellam_RT_choice[:, 1]
+rt_wrt_stim = rt_values - t_stim_for_sim
+# 0 and 1
+mask_0_1 = (rt_wrt_stim > 0) & (rt_wrt_stim < 1)
+rt_wrt_stim_01 = rt_wrt_stim[mask_0_1]
+choices_01 = rt_choices[mask_0_1]
+
+# up and down seperately
+up_mask = choices_01 == 1
+down_mask = choices_01 == -1
+up_rt_values = rt_wrt_stim_01[up_mask]
+down_rt_values = rt_wrt_stim_01[down_mask]
+N_up = len(up_rt_values)
+N_down = len(down_rt_values)
+N_total = N_up + N_down
+bins = np.arange(0,1,0.01)
+up_hist_skellam, _  = np.histogram(up_rt_values, bins=bins, density=True)
+down_hist_skellam, _ = np.histogram(down_rt_values, bins=bins, density=True)
+
+plt.plot(bins[:-1], up_hist_skellam * (N_up / N_total), 'r', label='up skellam')
+plt.plot(bins[:-1], -down_hist_skellam * (N_down / N_total), 'r', label='down skellam')
+
+
+
+# Same for cont DDM
+rt_values_cont = cont_DDM_RT_choice[:, 0]
+rt_choices_cont = cont_DDM_RT_choice[:, 1]
+rt_wrt_stim_cont = rt_values_cont - t_stim_for_sim
+# 0 and 1
+mask_0_1_cont = (rt_wrt_stim_cont > 0) & (rt_wrt_stim_cont < 1)
+rt_wrt_stim_01_cont = rt_wrt_stim_cont[mask_0_1_cont]
+choices_01_cont = rt_choices_cont[mask_0_1_cont]
+
+# up and down seperately
+up_mask = choices_01_cont == 1
+down_mask = choices_01_cont == -1
+up_rt_values = rt_wrt_stim_01_cont[up_mask]
+down_rt_values = rt_wrt_stim_01_cont[down_mask]
+N_up = len(up_rt_values)
+N_down = len(down_rt_values)
+N_total = N_up + N_down
+bins = np.arange(0,1,0.01)
+up_hist_cont, _  = np.histogram(up_rt_values, bins=bins, density=True)
+down_hist_cont, _ = np.histogram(down_rt_values, bins=bins, density=True)
+
+plt.plot(bins[:-1], up_hist_cont * (N_up / N_total), 'b', label='up cont DDM')
+plt.plot(bins[:-1], -down_hist_cont * (N_down / N_total), 'b', label='down cont DDM')
+plt.legend()
+
+# theory
+t_pts_wrt_stim = np.arange(0,1,0.001)
+t_stim_for_theory = np.random.choice(t_stim_for_sim, size=N_theory, replace=True)
+up_theory_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
+down_theory_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
+for j, t_stim in enumerate(t_stim_for_theory):
+############ CORRECT WAY #######################
+    trunc_factor_p_joint = cum_pro_and_reactive_trunc_fn(
+                                t_stim + 1, c_A_trunc_time,
+                                V_A, theta_A, t_A_aff,
+                                t_stim, t_E_aff, mu1, mu2, theta_E) - \
+                            cum_pro_and_reactive_trunc_fn(
+                                t_stim, c_A_trunc_time,
+                                V_A, theta_A, t_A_aff,
+                                t_stim, t_E_aff, mu1, mu2, theta_E)
+    
+    t_pts_wrt_fix = t_pts_wrt_stim + t_stim
+    up_theory_samples[j, :] = \
+        up_or_down_hit_truncated_proactive_V2_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1)
+    down_theory_samples[j, :] = \
+        up_or_down_hit_truncated_proactive_V2_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
+        
+    # past method
+    # up_theory_samples[j, :] = \
+    #     up_or_down_hit_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, 1)
+    # down_theory_samples[j, :] = \
+    #     up_or_down_hit_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, -1)
+    up_theory_samples[j, :] /= trunc_factor_p_joint
+    down_theory_samples[j, :] /= trunc_factor_p_joint
+
+###########################################################################
+    print(f'area under up theory: {np.trapezoid(up_theory_samples[j, :], t_pts_wrt_stim)}')
+    print(f'area under down theory: {np.trapezoid(down_theory_samples[j, :], t_pts_wrt_stim)}')
+up_samples_mean = up_theory_samples.mean(axis=0)
+down_samples_mean = down_theory_samples.mean(axis=0)
+plt.plot(t_pts_wrt_stim, up_samples_mean, 'k', label='up theory', ls='--', lw=3)
+plt.plot(t_pts_wrt_stim, -down_samples_mean, 'k', label='down theory', ls='--', lw=3)
+plt.show()
+
+# %%
+t_pts_wrt_stim = np.arange(-5, 5, 0.001)
+
+t_stim_for_theory = np.random.choice(t_stim_for_sim, size=N_theory, replace=True)
+theory_pro_skellam_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
+
+for idx, t_stim in enumerate(t_stim_for_theory):
+    t_pts_wrt_fix = t_pts_wrt_stim + t_stim
+    up = up_or_down_hit_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, 1) 
+    down = up_or_down_hit_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, -1)
+    theory_pro_skellam_samples[idx, :] = up + down
+
+# %%
+theory_pro_skellam_mean = np.mean(theory_pro_skellam_samples, axis=0)
+plt.plot(t_pts_wrt_stim, theory_pro_skellam_mean, 'r', alpha=0.5, lw=3, ls='--')
+plt.hist(pro_skellam_RT_wrt_stim, bins=bins, label='Pro Skellam', density=True, histtype='step', color='b')
+plt.show()
+
+# %%
+# Truncated likelihood, but truncation time = 0
+c_A_trunc_time = 0
+truncated_theory_pro_skellam_samples = np.zeros((N_theory, len(t_pts_wrt_stim)))
+for j, t_stim in enumerate(t_stim_for_theory):
+    t_pts_wrt_fix = t_pts_wrt_stim + t_stim
+    truncated_theory_pro_skellam_samples[j, :] = \
+        up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1) \
+        + up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
+# %%
+plt.scatter(t_pts_wrt_stim, truncated_theory_pro_skellam_samples.mean(axis=0), alpha=0.6, color='g', label='Truncated Theory (mean)')
+plt.plot(t_pts_wrt_stim, theory_pro_skellam_mean, 'r', alpha=0.5, lw=3, ls='--', label='Theory')
+plt.hist(pro_skellam_RT_wrt_stim, bins=bins, label='Pro Skellam', density=True, histtype='step', color='b')
+plt.title('Truncation Time = 0: Theory vs Simulated', fontsize=14)
+plt.legend()
 plt.show()
 
 # %%
@@ -222,8 +380,8 @@ abs_diff_theory_trunc_and_area = np.zeros(N_theory)
 for j, t_stim in enumerate(t_stim_for_theory):
     t_pts_wrt_fix_01 = t_pts_wrt_stim_01 + t_stim
     truncated_theory_01[j, :] = \
-        up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix_01, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1) \
-        + up_or_down_hit_truncated_proactive_fn(t_pts_wrt_fix_01, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
+        up_or_down_hit_truncated_proactive_V2_fn(t_pts_wrt_fix_01, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, 1) \
+        + up_or_down_hit_truncated_proactive_V2_fn(t_pts_wrt_fix_01, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, -1)
     
     # truncation factor theoretical
     trunc_factor_theoretical = cum_pro_and_reactive_trunc_fn(

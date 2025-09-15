@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from pyvbmc import VBMC
 import pandas as pd
 from vbmc_skellam_utils import up_or_down_hit_fn, cum_pro_and_reactive_trunc_fn, up_or_down_hit_wrt_tstim, up_or_down_hit_wrt_tstim_V2, up_or_down_hit_wrt_tstim_V3
+from vbmc_skellam_utils import up_or_down_hit_truncated_proactive_V2_fn
 
 
 def extract_stats_from_vp(vp):
@@ -382,28 +383,31 @@ def plot_rt_dists_grid(
             )
             if theta_best is not None and np.isfinite(R_mean) and np.isfinite(L_mean) and np.isfinite(t_E_aff):
                 try:
-                    # Build t_pts and collect t_stim samples for this condition
-                    t_pts = np.arange(-1.0, 2.0 + 0.001, 0.001)
+                    t_pts_0_1 = np.arange(0,1,0.001); N_theory = int(1e3)
+                    up_theory_samples = np.zeros((N_theory, len(t_pts_0_1)))
+                    down_theory_samples = np.zeros((N_theory, len(t_pts_0_1)))
                     t_stim_vals = df_cond['intended_fix'].to_numpy()
-                    # Subsample to avoid oversizing inside util function
-                    max_samples = 1000
-                    if t_stim_vals.size > max_samples:
-                        t_stim_vals = t_stim_vals[:max_samples]
-                    # t_pts_0_1, up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim(
-                    #     t_pts, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go, R_mean, L_mean, int(theta_best), c_A_trunc_time
-                    # )
-                    # V2 version
-                    t_pts_0_1 = np.arange(0, 1+0.001, 0.001)
-                    # up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim_V2(t_pts_0_1, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go, R_mean, L_mean, int(theta_best), c_A_trunc_time)
-                    ### TEMP NOTE ##############
-                    # t_A_aff = 0
-                    # t_E_aff = 0
-                    # del_go = 0
-                    # t_stim_vals = np.zeros_like(t_stim_vals)
-                    up_theory_mean_norm, down_theory_mean_norm = up_or_down_hit_wrt_tstim_V3(
-                        t_pts_0_1, V_A, theta_A, t_A_aff, t_stim_vals, t_E_aff, del_go,
-                        R_mean, L_mean, int(theta_best), c_A_trunc_time
-                    )
+                    t_stim_samples = np.random.choice(t_stim_vals, size=N_theory, replace=True)
+                    for stim_idx, t_stim in enumerate(t_stim_samples):
+                        t_pts_0_1_wrt_fix = t_pts_0_1 + t_stim
+                        up_theory_samples[stim_idx, :] = up_or_down_hit_truncated_proactive_V2_fn(t_pts_0_1_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, R_mean, L_mean, theta_best, c_A_trunc_time, 1)
+                        down_theory_samples[stim_idx, :] = up_or_down_hit_truncated_proactive_V2_fn(t_pts_0_1_wrt_fix, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, R_mean, L_mean, theta_best, c_A_trunc_time, -1)
+
+                        trunc_factor_p_joint = cum_pro_and_reactive_trunc_fn(
+                            t_stim + 1, c_A_trunc_time,
+                            V_A, theta_A, t_A_aff,
+                            t_stim, t_E_aff, mu1, mu2, theta_E) - \
+                        cum_pro_and_reactive_trunc_fn(
+                            t_stim, c_A_trunc_time,
+                            V_A, theta_A, t_A_aff,
+                            t_stim, t_E_aff, mu1, mu2, theta_E)
+                        
+                        up_theory_samples[j, :] /= trunc_factor_p_joint
+                        down_theory_samples[j, :] /= trunc_factor_p_joint
+                        
+                    up_theory_mean_norm = np.mean(up_theory_samples, axis=0)
+                    down_theory_mean_norm = np.mean(down_theory_samples, axis=0)
+
                     print(f"Params: V_A={V_A}, theta_A={theta_A}, t_A_aff={t_A_aff}, t_E_aff={t_E_aff}, del_go={del_go}, "
                           f"R_mean={R_mean}, L_mean={L_mean}, theta_best={theta_best}, c_A_trunc_time={c_A_trunc_time}")
                     ax.step(t_pts_0_1, up_theory_mean_norm, where='post', color='C1', label='THEORY +1')
@@ -417,24 +421,7 @@ def plot_rt_dists_grid(
                     ax.set_title(f"ABL={abl}, ILD={ild}, best θ={theta_best:02d}", fontsize=10)
                 except Exception as e:
                     raise ValueError(f"[WARN] up_or_down_hit_wrt_tstim failed for ABL={abl}, ILD={ild}: {e}. Falling back to direct density.")
-                    # Fallback: use direct hit densities with truncation as before
-                    # trunc = (
-                    #     cum_pro_and_reactive_trunc_fn(rt_max, c_A_trunc_time, V_A, theta_A, t_A_aff, 0.0, t_E_aff, R_mean, L_mean, int(theta_best))
-                    #     - cum_pro_and_reactive_trunc_fn(0.0, c_A_trunc_time, V_A, theta_A, t_A_aff, 0.0, t_E_aff, R_mean, L_mean, int(theta_best))
-                    # )
-                    # trunc = float(trunc)
-                    # dens_pos = np.array([
-                    #     up_or_down_hit_fn(t, V_A, theta_A, t_A_aff, 0.0, t_E_aff, del_go, R_mean, L_mean, int(theta_best), +1)
-                    #     for t in t_grid
-                    # ]) / max(trunc, eps)
-                    # dens_neg = np.array([
-                    #     up_or_down_hit_fn(t, V_A, theta_A, t_A_aff, 0.0, t_E_aff, del_go, R_mean, L_mean, int(theta_best), -1)
-                    #     for t in t_grid
-                    # ]) / max(trunc, eps)
-                    ax.step(t_grid, dens_pos, where='post', color='C1', label='THEORY +1')
-                    ax.step(t_grid, -dens_neg, where='post', color='C1', linestyle='--', label='THEORY -1')
-                    ax.set_title(f"ABL={abl}, ILD={ild}, best θ={theta_best:02d}", fontsize=10)
-            else:
+                    
                 ax.set_title(f"ABL={abl}, ILD={ild} (no best θ)", fontsize=10)
 
             ax.axhline(0.0, color='k', linewidth=1)
@@ -561,8 +548,8 @@ animal_id = "112"
 mu_samples = 10000
 bin_width = 0.01
 rt_max = 1.0
-# ca_trunc_time = 0.3
-ca_trunc_time = 0
+ca_trunc_time = 0.3
+# ca_trunc_time = 0
 
 abls = [20, 40, 60]
 ilds = sorted([1, -1, 2, -2, 4, -4, 8, -8, 16, -16])

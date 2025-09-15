@@ -10,8 +10,11 @@ from scipy.integrate import trapezoid as trapz
 from pyvbmc import VBMC
 from scipy.integrate import cumulative_trapezoid as cumtrapz
 import pickle
+import io
+import sys
+import contextlib
 from collections import defaultdict
-from vbmc_skellam_utils import cum_pro_and_reactive_trunc_fn, up_or_down_hit_fn
+from vbmc_skellam_utils import cum_pro_and_reactive_trunc_fn, up_or_down_hit_fn, up_or_down_hit_truncated_proactive_V2_fn   
 
 # %%
 # collect animals
@@ -37,7 +40,6 @@ if batch_animal_pairs:
     for batch, animal in batch_animal_pairs:
         # Ensure animal is a string and we don't add duplicates
         animal_str = str(animal)
-        # if animal_str not in batch_to_animals[batch]:
         if animal_str == '112':
             batch_to_animals[batch].append(animal_str)
 
@@ -120,28 +122,20 @@ def compute_loglike_trial(row, mu1, mu2, theta_E):
         t_stim = row['intended_fix']
 
         response_poke = row['response_poke']
-        
-        # trunc_factor_p_joint = cum_pro_and_reactive_trunc_fn(
-        #                         t_stim + 1, c_A_trunc_time,
-        #                         V_A, theta_A, t_A_aff,
-        #                         t_stim, t_E_aff, gamma, omega, w, K_max) - \
-        #                         cum_pro_and_reactive_trunc_fn(
-        #                         t_stim, c_A_trunc_time,
-        #                         V_A, theta_A, t_A_aff,
-        #                         t_stim, t_E_aff, gamma, omega, w, K_max)
-
-        trunc_factor_p_joint = cum_pro_and_reactive_trunc_fn(
-                                t_stim + 1, c_A_trunc_time,
-                                V_A, theta_A, t_A_aff,
-                                t_stim, t_E_aff, mu1, mu2, theta_E) - \
-                            cum_pro_and_reactive_trunc_fn(
-                                t_stim, c_A_trunc_time,
-                                V_A, theta_A, t_A_aff,
-                                t_stim, t_E_aff, mu1, mu2, theta_E)
         choice = 2*response_poke - 5
+
         
-        # P_joint_rt_choice = up_or_down_RTs_fit_OPTIM_V_A_change_gamma_omega_with_w_fn(rt, V_A, theta_A, gamma, omega, t_stim, t_A_aff, t_E_aff, del_go, choice, w, K_max)
-        P_joint_rt_choice = up_or_down_hit_fn(rt, V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, choice)
+        trunc_factor_p_joint = cum_pro_and_reactive_trunc_fn(
+                            t_stim + 1, c_A_trunc_time,
+                            V_A, theta_A, t_A_aff,
+                            t_stim, t_E_aff, mu1, mu2, theta_E) - \
+                        cum_pro_and_reactive_trunc_fn(
+                            t_stim, c_A_trunc_time,
+                            V_A, theta_A, t_A_aff,
+                            t_stim, t_E_aff, mu1, mu2, theta_E)
+
+        
+        P_joint_rt_choice = up_or_down_hit_truncated_proactive_V2_fn(np.array([rt]), V_A, theta_A, t_A_aff, t_stim, t_E_aff, del_go, mu1, mu2, theta_E, c_A_trunc_time, choice)[0]
         
 
         
@@ -206,7 +200,6 @@ for batch_name, animal_id in batch_animal_pairs:
     t_A_aff = abort_params['t_A_aff']
 
     # get the database from batch_csvs
-    # file_name = f'../fit_animal_by_animal/batch_csvs/batch_{batch_name}_valid_and_aborts.csv'
     file_name = f'/home/rlab/raghavendra/ddm_data/fit_animal_by_animal/batch_csvs/batch_{batch_name}_valid_and_aborts.csv'
     df = pd.read_csv(file_name)
     df_animal = df[df['animal'] == int(animal_id)]
@@ -261,10 +254,10 @@ for batch_name, animal_id in batch_animal_pairs:
                     logR, logL = params
                     R = 10**logR
                     L = 10**logL
-                    all_loglike = Parallel(n_jobs=30)(
-                        delayed(compute_loglike_trial)(row, R, L, int(theta_fixed))
+                    all_loglike = [
+                        compute_loglike_trial(row, R, L, int(theta_fixed))
                         for _, row in df_animal_cond_filter.iterrows()
-                    )
+                    ]
                     return float(np.sum(all_loglike))
 
                 def vbmc_joint_fn(params):
@@ -278,13 +271,45 @@ for batch_name, animal_id in batch_animal_pairs:
                 logL_0 = rng_init.uniform(logL_plausible_bounds[0], logL_plausible_bounds[1])
                 x_0 = np.array([logR_0, logL_0])
 
-                # Run VBMC
-                vbmc = VBMC(vbmc_joint_fn, x_0, lb, ub, plb, pub, options={'display': 'on', 'max_fun_evals': 50 * (2 + 2)})
-                vp, results = vbmc.optimize()
+                # Run VBMC and capture console output to save alongside PKL
+                log_stream = io.StringIO()
+                class _Tee:
+                    def __init__(self, *streams):
+                        self.streams = streams
+                    def write(self, s):
+                        for st in self.streams:
+                            st.write(s)
+                        return len(s)
+                    def flush(self):
+                        for st in self.streams:
+                            st.flush()
+
+                _tee = _Tee(sys.stdout, log_stream)
+                with contextlib.redirect_stdout(_tee):
+                    vbmc = VBMC(vbmc_joint_fn, x_0, lb, ub, plb, pub, options={'display': 'on', 'max_fun_evals': 50 * (2 + 2)})
+                    vp, results = vbmc.optimize()
 
                 # Save VBMC result for this condition and theta
                 os.makedirs(os.path.dirname(out_pkl), exist_ok=True)
                 vbmc.save(out_pkl, overwrite=True)
+
+                # Also save a text log with the VBMC console output and basic context
+                out_txt = os.path.splitext(out_pkl)[0] + '.txt'
+                try:
+                    with open(out_txt, 'w') as f:
+                        f.write(f'Batch: {batch_name}, Animal: {animal_id}\n')
+                        f.write(f'Condition: ABL={cond_ABL}, ILD={cond_ILD}, theta={theta_fixed:02d}\n')
+                        f.write(f'Init x_0: {x_0.tolist()}\n')
+                        f.write(f'Bounds: lb={lb.tolist()}, ub={ub.tolist()}, plb={plb.tolist()}, pub={pub.tolist()}\n')
+                        f.write(f'Timestamp: {pd.Timestamp.now().isoformat()}\n')
+                        f.write('\n=== VBMC results object ===\n')
+                        f.write(repr(results) + '\n')
+                        f.write('\n=== VBMC console output ===\n')
+                        f.write(log_stream.getvalue())
+                    print(f'Saved log: {out_txt}')
+                except Exception as e:
+                    print(f'Warning: failed to save log to {out_txt}: {e}')
+
                 print(f'Saved: {out_pkl}')
 
 # %%
