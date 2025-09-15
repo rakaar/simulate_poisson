@@ -32,12 +32,17 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 - vbmc_skellam_utils.py - skellam pdf,cdf, choice
 - `vbmc_fit_skellam_exp_data_theta_fixed_fit_logR_logL.py` - on real data single animal, per condition, fix 50 thetas and find fit logR, logL
 - analyse_vbmc_real_data_fit_cond_by_cond.py - Analyse VBMC fit on real data (fits logR, logL, theta)
+- `vbmc_fit_skellam_exp_data_theta_fixed_fit_logR_logL_ABL_60.py` - VBMC fit experimental data with theta fixed - ABL 60
 
 
 ### Utility Files
 - `sim_utils.py` - spike timings and spike train generating funcs
 
 ## Analysis Scripts
+
+### Skellam Analysis
+- `check_area_pro_skellam.py` - Debug area under proactive + skellam curve
+- `skella_with_w_rtd.py` - Incomplete - attempt to incorporate w in skellam RTD
 
 ### Core Analysis
 - `analysis_cont_vs_dis_ddm.py` - Analysis - discrete DDM vs cont DDM
@@ -46,6 +51,23 @@ This project simulates decision-making processes using Poisson-driven drift-diff
 ### Parameter Studies
 - `check_diff_rates.py` - Generate data - multiply left and right rates by a scaling factor to see if TIED and WL hold
 - `check_lambda_gamma.py` - Gamma from psychometric curve
+
+### Proactive Skellam Studies
+- `compare_proactive_poisson_sim_and_theory.py` - Proactive + skellam - simulations and theory density
+- `simulate_pro_skellam_and_check.py` - Proactive + skellam simulation
+- `check_ABL_20_ILD_1.py` - OLD version of proactive + skellam simulation and density check
+
+### Likelihood Analysis
+- `debug_simulate_and_like.py` - Debug_simulate_and_like - proactive + skellam - likelihood calculation with truncation
+- `test_likelihood_equivalence.py` - Checking if loop and vectorized likelihood agree - rough
+- `make_likelihoods_faster.py` - Check if vectorization does any good in condition by condition fit
+
+### DDM Race Models
+- `race_1_bound_vs_2_bound.py` - Incomplete - yet to check if there is a two 1-bound races equivalent to one 2-bounded DDM
+
+### Exploratory Scripts
+- `rough.py` - Rough notes
+- `rough_see_data.py` - Rough notes for data
 
 ## File Organization
 
