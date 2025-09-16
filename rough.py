@@ -78,3 +78,8 @@ plt.show()
 
 
 # %%
+import numpy as np
+import matplotlib.pyplot as plt
+max_ild = 100
+x = np.arange(-max_ild, max_ild, 0.1)
+plt.plot(x, np.tanh(2.13* x/17.37))
