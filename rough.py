@@ -83,3 +83,29 @@ import matplotlib.pyplot as plt
 max_ild = 100
 x = np.arange(-max_ild, max_ild, 0.1)
 plt.plot(x, np.tanh(2.13* x/17.37))
+# %%
+ild_range = np.arange(-16,16,0.1) # sound level difference between left and right ear  (dB)
+abl = 20 # average sound level in left and right year  - dB
+r_db = abl + (ild_range/2) # sound level in righ ear - dB
+l_db = abl - (ild_range/2) # sound level in left ear - dB
+p0 = 20 * 1e-6 # reference pressure level - Pa
+p_r = p0 * (10**(r_db/20)) # pressure in right ear - Pa
+p_l = p0 * (10**(l_db/20)) # pressure in left ear - Pa
+
+R0 = 10 # base firing rate
+lam = 2.13 # power law from stimulus to rate mapping: rate = base_rate * (pressure / reference pressure level) ^ lambda
+theta = 3 # bound for accumulation stopping
+
+r_R = R0 * ((p_r/p0)**lam) # firing rate in right side of brain
+r_L = R0 * ((p_l/p0)**lam) # firing rate in left side of brain
+
+x_ax = 20 * np.log10(p_r/p_l) # sound pressure difference
+y_ax =  theta * np.log10(r_R/r_L) # log odds in poisson model
+
+plt.plot(x_ax, y_ax)
+plt.xlabel('sound pressure difference')
+plt.ylabel('log odds')
+plt.title('poisson model')
+plt.show()
+
+
