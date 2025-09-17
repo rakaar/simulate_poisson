@@ -86,6 +86,22 @@ The files can be grouped by functionality:
    - Scaling studies (`analyse_scaling_rates.py`, `check_diff_rates.py`)
    - Parameter fitting (`check_lambda_gamma.py`)
 
+## Correlated Spiking
+
+This section contains files related to simulating and analyzing correlated spike trains in the context of drift-diffusion models.
+
+### Core Files
+- `correlated_spikes_sim.py` - Generate correlated spike trains and analyze their correlation properties
+- `corr_spikes_ddm.py` - Simulate decision-making processes using correlated spike trains in a drift-diffusion model
+- `correlated_spk_utils.py` - Utility functions for calculating cross-correlation and correlation coefficients
+
+### Functionality
+These files implement methods to:
+1. Generate pools of correlated spike trains with specified correlation coefficients
+2. Simulate decision-making processes using these correlated spike trains in a DDM framework
+3. Analyze the correlation structure of the generated spike trains
+4. Compare the behavior of correlated spike train DDMs with continuous DDMs
+
 ## Usage
 
 Use .venv library
