@@ -91,9 +91,14 @@ The files can be grouped by functionality:
 This section contains files related to simulating and analyzing correlated spike trains in the context of drift-diffusion models.
 
 ### Core Files
-- `correlated_spikes_sim.py` - Generate correlated spike trains and analyze their correlation properties
-- `corr_spikes_ddm.py` - Simulate decision-making processes using correlated spike trains in a drift-diffusion model
+- `correlated_spikes_sim.py` - (V1) Generate correlated spike trains using a common source method and analyze their correlation properties.
+- `corr_spikes_ddm.py` - (V1) Simulate decision-making processes using correlated spike trains in a drift-diffusion model.
+- `test_parallel_corr_spikes_speed.py` - Compares serial and parallel implementations of the correlated spikes DDM simulation, verifying correctness and measuring performance gains.
 - `correlated_spk_utils.py` - Utility functions for calculating cross-correlation and correlation coefficients
+
+### V2 Scripts (Thinning Method)
+- `correlated_spikes_sim_v2.py` - (V2) Generates and analyzes correlated spike trains using a more efficient thinning method.
+- `corr_spikes_ddm_v2.py` - (V2) A complete simulation script that uses the thinning method for generating correlated spikes, runs a DDM, and compares the reaction time distributions. Includes functionality to save output plots with timestamps.
 
 ### Functionality
 These files implement methods to:
