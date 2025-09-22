@@ -14,23 +14,29 @@ import time
 # ===================================================================
 
 # --- Simulation Control ---
-N_sim = int(100e3)  # Number of trials to simulate
+N_sim = int(e3)  # Number of trials to simulate
 
 # --- Spike Train Parameters ---
 
-c = 0.01
-# N_right_and_left = int((9/c) + 1)
-N_right_and_left = 500
+c = 0.9
+N_right_and_left = int((9/c) + 1)
+# N_right_and_left = 500
+
+# --- Decision Model Parameters ---
+theta = 40    # The decision threshold (+theta for positive, -theta for negative)
+
 
 N_right = N_right_and_left   # Number of neurons in the "right" evidence pool
 N_left = N_right_and_left   # Number of neurons in the "left" evidence pool
 corr_factor = 1 + ((N_right_and_left - 1) * c)
-r_right = 0.8 # Firing rate (Hz) for each neuron in the right pool
-r_left = 0.82# Firing rate (Hz) for each neuron in the left pool
-T = 2.5     # Max duration of a single trial (seconds)
 
-# --- Decision Model Parameters ---
-theta = 40    # The decision threshold (+theta for positive, -theta for negative)
+# r_left = (3000/N_right_and_left)/corr_factor# Firing rate (Hz) for each neuron in the left pool
+r_left = 25
+p_right_needed = 0.6
+log_odds = np.log10(p_right_needed/(1-p_right_needed))
+r_right = r_left * 10**( (corr_factor/theta) * log_odds )
+T = 1    # Max duration of a single trial (seconds)
+
 
 # print the params
 print(f'corr = {c}')
@@ -167,7 +173,7 @@ for i in tqdm(range(N_sim), desc='Simulating DDM'):
         ddm_data[i, 1] = 0
 # %%
 # --- Visualization: RT Histogram ---
-plt.figure(figsize=(15, 6))
+plt.figure(figsize=(12, 6))
 bins = np.arange(0,T,0.05 )
 pos_rts_poisson = results_array[(results_array[:, 1] == 1), 0]
 neg_rts_poisson = results_array[(results_array[:, 1] == -1), 0]
@@ -196,9 +202,14 @@ plt.plot(bin_centers, -neg_hist_poisson * poisson_frac_down, label='Poisson - Ne
 plt.plot(bin_centers, pos_hist_ddm * ddm_frac_up, label='DDM - Positive Choice', color='red', linestyle='-', linewidth=4, alpha=0.3)
 plt.plot(bin_centers, -neg_hist_ddm * ddm_frac_down, label='DDM - Negative Choice', color='red', linestyle='-', linewidth=4, alpha=0.3)
 plt.title(
-    f'corr = {c:.3f}, N = {N_right_and_left}, r_right(single N) = {r_right:.2f}, r_left(single N) = {r_left:.2f}, '
-    f'theta = {theta:.0f}, T = {T:.2f}, N*r_right = {N_right*r_right:.2f}, N*r_left = {N_left*r_left:.2f} corr_factor = {corr_factor:.2f}', 
+    f'corr = {c:.3f}, N = {N_right_and_left}, r_right = {r_right:.2f}, r_left = {r_left:.2f}, T = {T:.2f}\n'
+    f'corr_factor = {corr_factor:.2f}, N*r_right = {N_right*r_right:.2f}, N*r_left = {N_left*r_left:.2f}\n'
+    f'p_right = {prop_pos:.3f}, p_left = {prop_neg:.3f}\n'
+    f'Poisson: frac_up = {poisson_frac_up:.3f}, frac_down = {poisson_frac_down:.3f} | '
+    f'DDM: frac_up = {ddm_frac_up:.3f}, frac_down = {ddm_frac_down:.3f}',
+    fontsize=14
 )
+plt.axhline(0)
 plt.xlabel("Reaction Time (s)")
 plt.ylabel("Density")
 plt.legend()
