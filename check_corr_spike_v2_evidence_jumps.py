@@ -5,14 +5,15 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import multiprocessing
 
+# %%
 # Parameters
-c = 0.005
+c = 0.1
 N_right_and_left = int((9/c) + 1)
 N_right = N_right_and_left   # Number of neurons in the "right" evidence pool
 N_left = N_right_and_left   # Number of neurons in the "left" evidence pool
 
-r_left = 0.25  # Firing rate (Hz) for each neuron in the left pool
-p_right_needed = 0.6
+r_left = 0.1  # Firing rate (Hz) for each neuron in the left pool
+p_right_needed = 0.9
 log_odds = np.log10(p_right_needed/(1-p_right_needed))
 corr_factor = 1 + ((N_right_and_left - 1) * c)
 r_right = r_left * 10**( (corr_factor/40) * log_odds )  # Using theta=40 from original code
@@ -55,7 +56,7 @@ def run_single_trial(args):
     all_left_spikes = np.concatenate(list(left_pool_spikes.values()))
 
     # Define time bins (1ms)
-    dt = 0.001
+    dt = 1e-5  # 1 millisecond
     bins = np.arange(0, T + dt, dt)
 
     # Use histogram to count spikes in each bin
@@ -97,8 +98,8 @@ plt.figure(figsize=(12, 6))
 # Determine bin edges for the histogram
 min_val = all_evidence_increments.min()
 max_val = all_evidence_increments.max()
-bins = np.arange(min_val - 0.5, max_val + 1.5, 1)
-
+# bins = np.arange(min_val - 0.0001, max_val + 0.00001, 1)
+bins = np.arange(-24, 27, 0.001)
 plt.hist(all_evidence_increments, bins=bins, alpha=0.7, edgecolor='black', density=True, label='All Bins (including zeros)')
 
 # Add labels and title
@@ -123,3 +124,5 @@ print(f"Max: {max_val}")
 
 plt.tight_layout()
 plt.show()
+# %%
+print(max_val)

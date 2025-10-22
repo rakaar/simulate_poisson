@@ -13,30 +13,73 @@ import time
 # 1. PARAMETERS AND SETUP
 # ===================================================================
 
+
 # --- Simulation Control ---
-N_sim = int(e3)  # Number of trials to simulate
+N_sim = int(1*50e3)  # Number of trials to simulate
 
 # --- Spike Train Parameters ---
-
-c = 0.9
-N_right_and_left = int((9/c) + 1)
-# N_right_and_left = 500
-
-# --- Decision Model Parameters ---
-theta = 40    # The decision threshold (+theta for positive, -theta for negative)
-
-
-N_right = N_right_and_left   # Number of neurons in the "right" evidence pool
-N_left = N_right_and_left   # Number of neurons in the "left" evidence pool
-corr_factor = 1 + ((N_right_and_left - 1) * c)
-
 # r_left = (3000/N_right_and_left)/corr_factor# Firing rate (Hz) for each neuron in the left pool
-r_left = 25
-p_right_needed = 0.6
-log_odds = np.log10(p_right_needed/(1-p_right_needed))
-r_right = r_left * 10**( (corr_factor/theta) * log_odds )
-T = 1    # Max duration of a single trial (seconds)
+# r_left = 0.28
+# p_right_needed = 0.7
+# log_odds = np.log10(p_right_needed/(1-p_right_needed))
+# r_right = r_left * 10**( (corr_factor/theta) * log_odds )
 
+
+
+N_right_and_left = 500
+N_right = N_right_and_left  
+N_left = N_right_and_left   
+
+# tweak
+theta = 45
+corr_factor = 10
+
+# get from model fits
+lam = 2.13
+l = 0.9
+Nr0 = 40000
+
+# correlation and base firing rate
+c = (corr_factor - 1) / (N_right_and_left - 1)
+r0 = Nr0/N_right_and_left
+r0 /= (corr_factor**2)
+
+
+abl = 60; ild = 0
+p0 = 20e-6
+r_db = (2*abl + ild)/2
+l_db = (2*abl - ild)/2
+pr = p0 * (10 ** (r_db/20))
+pl = p0 * (10 ** (l_db/20))
+
+den = (pr ** (lam * l) ) + ( pl ** (lam * l) )
+rr = (pr ** lam) / den
+rl = (pl ** lam) / den
+rr_r0 = r0 * rr
+rl_r0 = r0 * rl
+
+# per neuron firing rate
+r_left = rl_r0
+r_right = rr_r0
+
+p_right_needed = np.nan
+log_odds = np.nan
+
+T = 5    # Max duration of a single trial (seconds)
+
+# example firing rates in normalization model:
+# ABL = 40, ILD = 4
+# single neuron
+# r_R = 0.197
+# r_L = 0.074
+# base line firing rate:
+# R0 = 7.7
+# Nr_R, N r_L = 1.52, 0.57
+
+# ABL = 20, ILD = 1
+# (0.7050033372660773, 0.5516849960767949)
+# ABL = 60, ILD = 16
+# (3.9562292156607732, 0.07821345048684913)
 
 # print the params
 print(f'corr = {c}')
@@ -45,7 +88,13 @@ print(f'theta = {theta}')
 print(f'corr_factor = {corr_factor}')
 print(f'r_right = {r_right}')
 print(f'r_left = {r_left}')
+print(f' N * r_right = {N_right_and_left * r_right}')
+print(f' N * r_left = {N_right_and_left * r_left}')
+theta_prime = theta/corr_factor
+print(f'theta prime = {theta/corr_factor}')
 
+if theta_prime < 2:
+    raise ValueError("Theta prime must be greater than 2")
 # Use a random number generator for reproducibility
 rng = np.random.default_rng(seed=42)
 
@@ -147,6 +196,10 @@ sigma_sq = N_neurons * (r_right + r_left) * corr_factor
 sigma = sigma_sq**0.5
 theta_ddm = theta
 
+print(f'mu = {mu}')
+print(f'sigma = {sigma}')
+print(f'theta = {theta}')
+
 # sigma_sq = N_neurons * (r_right + r_left)
 # sigma = sigma_sq**0.5
 # theta_ddm = theta / corr_factor
@@ -188,6 +241,7 @@ bin_centers = (bins[:-1] + bins[1:]) / 2
 # poisson
 poisson_up = len(pos_rts_poisson)
 poisson_down = len(neg_rts_poisson)
+print(f'Poisson - Up: {poisson_up}, Down: {poisson_down}')
 poisson_frac_up = poisson_up / (poisson_up + poisson_down)
 poisson_frac_down = poisson_down / (poisson_up + poisson_down)
 
@@ -206,8 +260,8 @@ plt.title(
     f'corr_factor = {corr_factor:.2f}, N*r_right = {N_right*r_right:.2f}, N*r_left = {N_left*r_left:.2f}\n'
     f'p_right = {prop_pos:.3f}, p_left = {prop_neg:.3f}\n'
     f'Poisson: frac_up = {poisson_frac_up:.3f}, frac_down = {poisson_frac_down:.3f} | '
-    f'DDM: frac_up = {ddm_frac_up:.3f}, frac_down = {ddm_frac_down:.3f}',
-    fontsize=14
+    f'DDM: frac_up = {ddm_frac_up:.3f}, frac_down = {ddm_frac_down:.3f} \n'
+    f'theta = {theta}, theta_prime = {theta}/{corr_factor:.2f} = {theta/corr_factor:.2f}'
 )
 plt.axhline(0)
 plt.xlabel("Reaction Time (s)")
@@ -264,3 +318,6 @@ norm_term = 1
 print('\nvanilla')
 print(f' R: {rr/norm_term}')
 print(f' L: {rl/norm_term}')
+
+# %%
+N_right_and_left * c
