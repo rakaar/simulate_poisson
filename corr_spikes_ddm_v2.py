@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm # Optional: for a nice progress bar
 import multiprocessing
 import time
+from joblib import Parallel, delayed
 
 # ===================================================================
 # 1. PARAMETERS AND SETUP
@@ -15,7 +16,7 @@ import time
 
 
 # --- Simulation Control ---
-N_sim = int(1*50e3)  # Number of trials to simulate
+N_sim = int(2*50e3)  # Number of trials to simulate
 
 # --- Spike Train Parameters ---
 # r_left = (3000/N_right_and_left)/corr_factor# Firing rate (Hz) for each neuron in the left pool
@@ -26,31 +27,34 @@ N_sim = int(1*50e3)  # Number of trials to simulate
 
 
 
-N_right_and_left = 500
+N_right_and_left = 50
 N_right = N_right_and_left  
 N_left = N_right_and_left   
 
 # tweak
-theta = 45
-corr_factor = 10
+theta = 2.5
+corr_factor = 2
+
+theta *= corr_factor
 
 # get from model fits
-lam = 2.13
+lam = 1.3
 l = 0.9
-Nr0 = 40000
+# Nr0 = 13.3
+Nr0 = 1
 
 # correlation and base firing rate
 c = (corr_factor - 1) / (N_right_and_left - 1)
 r0 = Nr0/N_right_and_left
-r0 /= (corr_factor**2)
+r0 *= (corr_factor)
 
 
-abl = 60; ild = 0
-p0 = 20e-6
+abl = 20; ild = 0
+
 r_db = (2*abl + ild)/2
 l_db = (2*abl - ild)/2
-pr = p0 * (10 ** (r_db/20))
-pl = p0 * (10 ** (l_db/20))
+pr = (10 ** (r_db/20))
+pl = (10 ** (l_db/20))
 
 den = (pr ** (lam * l) ) + ( pl ** (lam * l) )
 rr = (pr ** lam) / den
@@ -65,8 +69,7 @@ r_right = rr_r0
 p_right_needed = np.nan
 log_odds = np.nan
 
-T = 5    # Max duration of a single trial (seconds)
-
+T = 15   # Max duration of a single trial (seconds)
 # example firing rates in normalization model:
 # ABL = 40, ILD = 4
 # single neuron
@@ -90,14 +93,14 @@ print(f'r_right = {r_right}')
 print(f'r_left = {r_left}')
 print(f' N * r_right = {N_right_and_left * r_right}')
 print(f' N * r_left = {N_right_and_left * r_left}')
-theta_prime = theta/corr_factor
-print(f'theta prime = {theta/corr_factor}')
+print(f'theta og = {theta/corr_factor}')
 
-if theta_prime < 2:
-    raise ValueError("Theta prime must be greater than 2")
+# if theta_prime < 2:
+#     raise ValueError("Theta prime must be greater than 2")
 # Use a random number generator for reproducibility
 rng = np.random.default_rng(seed=42)
 
+# %%
 
 def generate_correlated_pool(N, c, r, T, rng):
     """
@@ -204,30 +207,45 @@ print(f'theta = {theta}')
 # sigma = sigma_sq**0.5
 # theta_ddm = theta / corr_factor
 
-ddm_data = np.zeros((N_sim, 2))
+def simulate_single_ddm_trial(trial_idx, mu, sigma, theta_ddm, dt, dB, n_steps):
+    """Simulate a single DDM trial."""
+   
+    
+    DV = 0.0
+    
+    for step in range(n_steps):
+        # Generate single evidence step
+        evidence_step = mu*dt + (sigma)*np.random.normal(0, dB)
+        DV += evidence_step
+        
+        # Check for boundary crossing
+        if DV >= theta_ddm:
+            return (step * dt, 1)
+        elif DV <= -theta_ddm:
+            return (step * dt, -1)
+    
+    # No decision made within time limit
+    return (np.nan, 0)
+
 dt = 1e-4
 dB = 1e-2
-evidence_steps = mu*dt + (sigma)*np.random.normal(0, dB, size=(N_sim, int(T/dt)))
+n_steps = int(T/dt)
 
-for i in tqdm(range(N_sim), desc='Simulating DDM'):
-    DV = np.cumsum(evidence_steps[i])
-    pos_crossings = np.where(DV >= theta_ddm)[0]
-    neg_crossings = np.where(DV <= -theta_ddm)[0]
-    first_pos_idx = pos_crossings[0] if pos_crossings.size > 0 else np.inf
-    first_neg_idx = neg_crossings[0] if neg_crossings.size > 0 else np.inf
-    if first_pos_idx < first_neg_idx:
-        ddm_data[i, 0] = first_pos_idx * dt
-        ddm_data[i, 1] = 1
-    elif first_neg_idx < first_pos_idx:
-        ddm_data[i, 0] = first_neg_idx * dt
-        ddm_data[i, 1] = -1
-    else:
-        ddm_data[i, 0] = np.nan
-        ddm_data[i, 1] = 0
+# Parallel DDM simulation
+start_time_ddm = time.time()
+ddm_results = Parallel(n_jobs=-1)(
+    delayed(simulate_single_ddm_trial)(i, mu, sigma, theta_ddm, dt, dB, n_steps) 
+    for i in tqdm(range(N_sim), desc='Simulating DDM')
+)
+ddm_data = np.array(ddm_results)
+end_time_ddm = time.time()
+print(f"DDM simulation took: {end_time_ddm - start_time_ddm:.2f} seconds")
 # %%
 # --- Visualization: RT Histogram ---
 plt.figure(figsize=(12, 6))
-bins = np.arange(0,T,0.05 )
+max_T = np.max(results_array[(results_array[:, 1] == 1), 0])
+print(f'max_T = {max_T}')
+bins = np.arange(0,max_T,max_T/ 500)
 pos_rts_poisson = results_array[(results_array[:, 1] == 1), 0]
 neg_rts_poisson = results_array[(results_array[:, 1] == -1), 0]
 pos_hist_poisson, _ = np.histogram(pos_rts_poisson, bins=bins, density=True)
@@ -257,11 +275,12 @@ plt.plot(bin_centers, pos_hist_ddm * ddm_frac_up, label='DDM - Positive Choice',
 plt.plot(bin_centers, -neg_hist_ddm * ddm_frac_down, label='DDM - Negative Choice', color='red', linestyle='-', linewidth=4, alpha=0.3)
 plt.title(
     f'corr = {c:.3f}, N = {N_right_and_left}, r_right = {r_right:.2f}, r_left = {r_left:.2f}, T = {T:.2f}\n'
-    f'corr_factor = {corr_factor:.2f}, N*r_right = {N_right*r_right:.2f}, N*r_left = {N_left*r_left:.2f}\n'
+    f'corr_factor = {corr_factor:.3f}, N*r_right = {N_right*r_right:.2f}, N*r_left = {N_left*r_left:.2f}\n'
     f'p_right = {prop_pos:.3f}, p_left = {prop_neg:.3f}\n'
     f'Poisson: frac_up = {poisson_frac_up:.3f}, frac_down = {poisson_frac_down:.3f} | '
     f'DDM: frac_up = {ddm_frac_up:.3f}, frac_down = {ddm_frac_down:.3f} \n'
-    f'theta = {theta}, theta_prime = {theta}/{corr_factor:.2f} = {theta/corr_factor:.2f}'
+    f'theta = {theta}, theta_prime = {theta}/{corr_factor:.2f} = {theta/corr_factor:.2f} \n'
+    f'mu = {mu}, sigma={sigma :.3f}, sigma^2={sigma**2 :.3f}'
 )
 plt.axhline(0)
 plt.xlabel("Reaction Time (s)")
@@ -290,34 +309,4 @@ print(f"Figure saved to {filepath}")
 plt.show()
 # %%
 # --- Other Calculations ---
-p0 = 20 * 1e-6 # Pa
-ABL = 20 # dB
-ILD = 1 # dB
-slr = ABL + (ILD/2) # db
-sll = ABL - (ILD/2) # db
-pr = p0 * (10**(slr/20)) # pa
-pl = p0 * (10**(sll/20)) # pa
-
-## norm model
-Nr0 = 1000/283 
-lam = 4.6
-ell = 0.9
-rr = Nr0 * ((pr/p0)**lam)
-rl = Nr0 * ((pl/p0)**lam)
-norm_term = rr**(ell ) + rl**(ell )
-print('\nnorm')
-print(f' R: {rr/norm_term}')
-print(f' L: {rl/norm_term}')
-
-# vanilla
-Nr0 = 1000/0.43
-lam = 0.13
-rr = Nr0 * ((pr/p0)**lam)
-rl = Nr0 * ((pl/p0)**lam)
-norm_term = 1
-print('\nvanilla')
-print(f' R: {rr/norm_term}')
-print(f' L: {rl/norm_term}')
-
-# %%
-N_right_and_left * c
+print(f'corr factor = {corr_factor}')
