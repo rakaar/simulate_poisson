@@ -11,7 +11,7 @@ from collections import Counter
 
 N_sim = 100  # Number of trials to analyze
 
-N_right_and_left =10000
+N_right_and_left =100
 N_right = N_right_and_left  
 N_left = N_right_and_left   
 
