@@ -99,6 +99,7 @@ This section contains files related to simulating and analyzing correlated spike
 ### V2 Scripts (Thinning Method)
 - `correlated_spikes_sim_v2.py` - (V2) Generates and analyzes correlated spike trains using a more efficient thinning method.
 - `corr_spikes_ddm_v2.py` - (V2) A complete simulation script that uses the thinning method for generating correlated spikes, runs a DDM, and compares the reaction time distributions. Includes functionality to save output plots with timestamps.
+- `combined_poisson_ddm_jump_analysis.py` - Comprehensive analysis script that combines Poisson spiking model simulation, continuous DDM simulation, and evidence jump distribution analysis. Generates a 2x1 plot showing: (top) reaction time distributions comparing Poisson vs DDM models, and (bottom) evidence jump distribution from time-binned spike differences. Uses parallel processing for efficient simulation.
 
 ### Functionality
 These files implement methods to:
