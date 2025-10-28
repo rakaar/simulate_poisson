@@ -126,6 +126,12 @@ A systematic comparison framework for studying correlated Poisson spiking models
 - `ddm_uncorr_sim.py` - Run uncorrelated DDM simulations and save results to pickle file
 - `vary_c_and_corr_factor.py` - Main analysis script that varies correlation coefficient (c), correlation factor, and exponential noise across parameter grid; runs Poisson, DDM, and evidence distribution analysis for each combination; saves individual results to separate files
 
+### Analysis Scripts
+- `check_negative_rts.py` - Analyzes all simulation results to detect and visualize negative reaction times across parameter combinations
+- `plot_ks_for_V2.py` - Plots KS-statistic vs c for V2 results (fixed corr_factor and noise)
+- `plot_ks_for_V3.py` - Plots KS-statistic vs c for V3 results (fixed corr_factor and noise)
+- `plot_ks_for_any_V.py` - Generic KS-statistic plotting script that auto-detects parameters from any version
+
 ### Output
 - `results/` - Folder containing individual pickle files for each parameter combination with Poisson results, DDM results, and evidence distributions
 
