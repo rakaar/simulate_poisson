@@ -113,6 +113,22 @@ These files implement methods to:
 3. Analyze the correlation structure of the generated spike trains
 4. Compare the behavior of correlated spike train DDMs with continuous DDMs
 
+## Poisson Correlated vs DDM Uncorrelated (poissonCorr_vs_DDMunCorr/)
+
+A systematic comparison framework for studying correlated Poisson spiking models versus uncorrelated DDM models across multiple parameter combinations.
+
+### Core Files
+- `params.py` - Shared parameters for all simulations (N_sim, firing rates, psychometric parameters, etc.)
+- `ddm_utils.py` - Utility functions for DDM simulations (simulate_single_ddm_trial)
+- `poisson_spike_corr_with_noise_utils.py` - Utility functions for Poisson spike generation with correlation and noise (generate_correlated_pool, run_single_trial, get_trial_binned_spike_differences)
+
+### Simulation Scripts
+- `ddm_uncorr_sim.py` - Run uncorrelated DDM simulations and save results to pickle file
+- `vary_c_and_corr_factor.py` - Main analysis script that varies correlation coefficient (c), correlation factor, and exponential noise across parameter grid; runs Poisson, DDM, and evidence distribution analysis for each combination; saves individual results to separate files
+
+### Output
+- `results/` - Folder containing individual pickle files for each parameter combination with Poisson results, DDM results, and evidence distributions
+
 ## Usage
 
 Use .venv library
