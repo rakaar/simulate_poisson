@@ -16,7 +16,7 @@ N_left = N_right_and_left
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 # tweak
-theta = 2.5
+theta = 2
 # theta = 10
 theta_scaled = theta * corr_factor
 

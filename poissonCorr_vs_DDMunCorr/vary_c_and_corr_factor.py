@@ -34,9 +34,10 @@ from ddm_utils import simulate_single_ddm_trial
 # ===================================================================
 
 # Arrays of correlation coefficients and correlation factors to test
-c_array = np.array([0.01, 0.05, 0.1, 0.2])
-corr_factor_array = np.array([1.1, 2, 5, 10, 20])
-exponential_noise_array = np.array([0, 1e-3, 2.5e-3, 5e-3])  # 0ms, 1ms, 2.5ms, 5ms in seconds
+c_array = np.array([ 0.01, 0.05, 0.1])
+corr_factor_array = np.array([2])
+exponential_noise_array = np.array([0])
+noise_mean_subtraction = True  # If True, subtract mean of noise distribution and allow negative RTs  
 
 print(f"Testing {len(c_array)} values of c: {c_array}")
 print(f"Testing {len(corr_factor_array)} values of corr_factor: {corr_factor_array}")
@@ -47,7 +48,7 @@ print(f"Total combinations: {len(c_array) * len(corr_factor_array) * len(exponen
 # CREATE RESULTS FOLDER
 # ===================================================================
 
-results_folder = 'results'
+results_folder = 'results_V13'
 os.makedirs(results_folder, exist_ok=True)
 print(f"\nResults will be saved to folder: {results_folder}/")
 
@@ -123,7 +124,8 @@ for c in c_array:
                 N_left=N_left,
                 r_left_scaled=r_left_scaled,
                 theta_scaled=theta_scaled,
-                exponential_noise_scale=exponential_noise_to_spk_time
+                exponential_noise_scale=exponential_noise_to_spk_time,
+                noise_mean_subtraction=noise_mean_subtraction
             )
             
             tasks = [(i, master_seed) for i in range(N_sim_rtd)]
@@ -204,7 +206,8 @@ for c in c_array:
                     r_right_scaled=r_right_scaled,
                     N_left=N_left,
                     r_left_scaled=r_left_scaled,
-                    exponential_noise_scale=exponential_noise_to_spk_time
+                    exponential_noise_scale=exponential_noise_to_spk_time,
+                    noise_mean_subtraction=noise_mean_subtraction
                 )
                 all_bin_differences.extend(bin_diffs)
             
@@ -241,6 +244,7 @@ for c in c_array:
                     'N_sim': N_sim,
                     'N_sim_rtd': N_sim_rtd,
                     'exponential_noise_to_spk_time': exponential_noise_to_spk_time,
+                    'noise_mean_subtraction': noise_mean_subtraction,
                 },
                 'poisson': {
                     'results': poisson_results_array,

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-def generate_correlated_pool(N, c, r, T, rng, exponential_noise_scale=0):
+def generate_correlated_pool(N, c, r, T, rng, exponential_noise_scale=0, noise_mean_subtraction=False):
     """
     Generates a pool of N correlated spike trains using the thinning method.
     
@@ -25,6 +25,9 @@ def generate_correlated_pool(N, c, r, T, rng, exponential_noise_scale=0):
     exponential_noise_scale : float
         Scale parameter for exponential noise added to spike times (seconds)
         Default is 0 (no noise)
+    noise_mean_subtraction : bool
+        If True, subtract mean of noise distribution and allow negative spike times
+        Default is False
     
     Returns:
     --------
@@ -44,9 +47,16 @@ def generate_correlated_pool(N, c, r, T, rng, exponential_noise_scale=0):
         # Add Exponential noise to spike timings (always positive delays)
         noise = rng.exponential(scale=exponential_noise_scale, size=len(neuron_spikes))
         neuron_spikes = neuron_spikes + noise
-        # Ensure spike times remain within [0, T] and are sorted
-        neuron_spikes = np.clip(neuron_spikes, 0, T)
-        neuron_spikes = np.sort(neuron_spikes)
+        
+        if noise_mean_subtraction:
+            # Subtract mean of exponential noise distribution (mean = scale)
+            neuron_spikes = neuron_spikes - exponential_noise_scale
+            # Allow negative spike times, just sort them
+            neuron_spikes = np.sort(neuron_spikes)
+        else:
+            # Ensure spike times remain within [0, T] and are sorted
+            # neuron_spikes = np.clip(neuron_spikes, 0, T)
+            neuron_spikes = np.sort(neuron_spikes)
         
         pool_spikes[i] = neuron_spikes
     
@@ -54,7 +64,7 @@ def generate_correlated_pool(N, c, r, T, rng, exponential_noise_scale=0):
 
 
 def run_single_trial(args, N_right, c, r_right_scaled, T, N_left, r_left_scaled, 
-                     theta_scaled, exponential_noise_scale=0):
+                     theta_scaled, exponential_noise_scale=0, noise_mean_subtraction=False):
     """
     Runs a single trial of the Poisson spiking simulation.
     
@@ -78,6 +88,8 @@ def run_single_trial(args, N_right, c, r_right_scaled, T, N_left, r_left_scaled,
         Decision threshold (scaled)
     exponential_noise_scale : float
         Scale parameter for exponential noise (seconds)
+    noise_mean_subtraction : bool
+        If True, subtract mean of noise distribution and allow negative spike times
     
     Returns:
     --------
@@ -89,9 +101,9 @@ def run_single_trial(args, N_right, c, r_right_scaled, T, N_left, r_left_scaled,
 
     # Generate all spike trains for this trial (using scaled rates)
     right_pool_spikes = generate_correlated_pool(N_right, c, r_right_scaled, T, 
-                                                  rng_local, exponential_noise_scale)
+                                                  rng_local, exponential_noise_scale, noise_mean_subtraction)
     left_pool_spikes = generate_correlated_pool(N_left, c, r_left_scaled, T, 
-                                                 rng_local, exponential_noise_scale)
+                                                 rng_local, exponential_noise_scale, noise_mean_subtraction)
 
     # Consolidate spikes into a single stream of evidence events
     all_right_spikes = np.concatenate(list(right_pool_spikes.values()))
@@ -115,8 +127,8 @@ def run_single_trial(args, N_right, c, r_right_scaled, T, N_left, r_left_scaled,
     # Run the decision process using the cumsum method
     dv_trajectory = np.cumsum(event_jumps)
 
-    pos_crossings = np.where(dv_trajectory >= theta_scaled)[0]
-    neg_crossings = np.where(dv_trajectory <= -theta_scaled)[0]
+    pos_crossings = np.where(dv_trajectory >= theta_scaled - 1e-10)[0]
+    neg_crossings = np.where(dv_trajectory <= -theta_scaled + 1e-10)[0]
 
     first_pos_idx = pos_crossings[0] if pos_crossings.size > 0 else np.inf
     first_neg_idx = neg_crossings[0] if neg_crossings.size > 0 else np.inf
@@ -136,7 +148,7 @@ def run_single_trial(args, N_right, c, r_right_scaled, T, N_left, r_left_scaled,
 
 def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T, N_right, c, 
                                        r_right_scaled, N_left, r_left_scaled, 
-                                       exponential_noise_scale=0):
+                                       exponential_noise_scale=0, noise_mean_subtraction=False):
     """
     Runs a single trial, bins spike times into bins of size dt_bin,
     and returns the spike difference (R - L) for each time bin.
@@ -163,6 +175,8 @@ def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T, N_right, c,
         Scaled firing rate for left pool
     exponential_noise_scale : float
         Scale parameter for exponential noise (seconds)
+    noise_mean_subtraction : bool
+        If True, subtract mean of noise distribution and allow negative spike times
     
     Returns:
     --------
@@ -173,17 +187,28 @@ def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T, N_right, c,
     
     # Generate all spike trains for this trial (using scaled rates)
     right_pool_spikes = generate_correlated_pool(N_right, c, r_right_scaled, T, 
-                                                  rng_local, exponential_noise_scale)
+                                                  rng_local, exponential_noise_scale, noise_mean_subtraction)
     left_pool_spikes = generate_correlated_pool(N_left, c, r_left_scaled, T, 
-                                                 rng_local, exponential_noise_scale)
+                                                 rng_local, exponential_noise_scale, noise_mean_subtraction)
     
     # Consolidate all spikes
     all_right_spikes = np.concatenate(list(right_pool_spikes.values()))
     all_left_spikes = np.concatenate(list(left_pool_spikes.values()))
     
     # Create time bins
-    n_bins = int(np.ceil(T / dt_bin))
-    time_bins = np.arange(0, T + dt_bin, dt_bin)
+    if noise_mean_subtraction:
+        # When allowing negative times, need to extend bins to cover negative range
+        all_spikes = np.concatenate([all_right_spikes, all_left_spikes])
+        if len(all_spikes) > 0:
+            min_time = min(0, np.min(all_spikes))
+            max_time = max(T, np.max(all_spikes))
+        else:
+            min_time = 0
+            max_time = T
+        time_bins = np.arange(min_time, max_time + dt_bin, dt_bin)
+    else:
+        n_bins = int(np.ceil(T / dt_bin))
+        time_bins = np.arange(0, T + dt_bin, dt_bin)
     
     # Count spikes in each bin
     right_counts, _ = np.histogram(all_right_spikes, bins=time_bins)
