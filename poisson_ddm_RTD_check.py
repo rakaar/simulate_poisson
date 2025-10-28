@@ -2,6 +2,10 @@
 # %%
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
+from pathlib import Path
+
+from scipy.stats import ks_2samp
 
 
 def fpt_density_skellam(t, mu1, mu2, theta):
@@ -235,26 +239,43 @@ def fpt_density_continuous_ddm(t, mu, sigma_sq, theta, M=401):
     return ft
 
 
-def main():
-    #  1. Define Parameters and Plot the Analytical PDF
-    A = 20; I = 1
-    r0 = (1000/0.3)
-    rate_lambda = 0.1
-    rR = r0 * (10 ** (rate_lambda * A / 20)) * (10 ** (rate_lambda * I / 40))
-    rL = r0 * (10 ** (rate_lambda * A / 20)) * (10 ** (-rate_lambda * I / 40))
+# def main():
+# %%
+#  1. Define Parameters and Plot the Analytical PDF
+def two_theta_sim(theta_true, theta_cont):
+    A = 20; I = 4
+    # r0 = (1000/0.3)
+    # r0 = 13.3
+    # rate_lambda = 1.3
+    # rR = r0 * (10 ** (rate_lambda * A / 20)) * (10 ** (rate_lambda * I / 40))
+    # rL = r0 * (10 ** (rate_lambda * A / 20)) * (10 ** (-rate_lambda * I / 40))
+    r0 = 13.3
+    lam = 1.3
+    l = 0.9
+    abl = A; ild = I
+    r_db = (2*abl + ild)/2
+    l_db = (2*abl - ild)/2
+    pr = (10 ** (r_db/20))
+    pl = (10 ** (l_db/20))
+    den = (pr ** (lam * l) ) + ( pl ** (lam * l) )
+    rr = (pr ** lam) / den
+    rl = (pl ** lam) / den
+    rR = r0 * rr
+    rL = r0 * rl
+
     mu1_true = rR
     mu2_true = rL
     print(f"mu1_true={mu1_true}, mu2_true={mu2_true}")
-    theta_true = 30      # Boundary (integer)
+    # theta_true = 3   # Boundary (integer)
 
     # Time vector for plotting
     t = np.linspace(0.0, 2.0, 500)
 
     # Calculate the PDF
-    pdf_values = fpt_density_skellam(t, mu1_true, mu2_true, theta_true)
+    # pdf_values = fpt_density_skellam(t, mu1_true, mu2_true, theta_true)
 
     #  2. Simulate Data from the Process
-    num_trials = 50_000
+    num_trials = 100_000
     rng = np.random.default_rng()
     rt_data = np.empty(num_trials, dtype=float)
     for i in range(num_trials):
@@ -265,26 +286,158 @@ def main():
     #  4. Continuous DDM parameters from Poisson params
     mu_cont = mu1_true - mu2_true
     sigma_sq_cont = mu1_true + mu2_true
-    theta_cont = float(theta_true)
+    # theta_cont = float(theta_true)
+    # theta_cont = 3
 
     #  5. Simulate continuous DDM FPT data
     cont_rt_data = simulate_cont_ddm_fpt(mu_cont, sigma_sq_cont, theta_cont, N_sim=num_trials, T=2.0, rng=rng)
+    return rt_data, cont_rt_data
 
-    #  6. Single plot: Poisson sim RTD + Skellam theory + Continuous DDM sim RTD
-    plt.figure(figsize=(7, 4), facecolor="white")
-    bins = np.arange(0.0, 2.0 + 0.01, 0.01)  # 0:.01:2
-    # Use the first color from the current cycle for the theory line
-    cycle_colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['C0'])
-    plt.hist(rt_data, bins=bins, density=True, alpha=0.45, edgecolor="none", label="Poisson sim")
-    plt.hist(cont_rt_data, bins=bins, density=True, alpha=0.45, edgecolor="none", label="Continuous DDM sim")
-    plt.plot(t, pdf_values, linewidth=1.5, color=cycle_colors[0], label="Poisson theory")
-    plt.xlabel("Time")
-    plt.ylabel("Density")
-    plt.title(f"Poisson DDM: mu1={mu1_true}, mu2={mu2_true}, theta={theta_true}")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+# %%
+sk_2, dd_2 = two_theta_sim(2, 2)
+sk_3, dd_3 = two_theta_sim(5, 5)
+
+# %%
+bins = np.arange(0.0, 2.0 + 0.01, 0.01)  # 0:.01:2
+
+plt.hist(sk_2, bins=bins, color='b', ls='--', label='sk 2', histtype='step', density=True)
+plt.hist(sk_3, bins=bins, color='r', ls='--', label='sk 3', histtype='step', density=True)
+
+plt.hist(dd_2, bins=bins, color='b', label='dd 2', histtype='step', density=True)
+plt.hist(dd_3, bins=bins, color='r', label='dd 3', histtype='step', density=True)
+plt.legend()
+
+# %%
+#  6. Single plot: Poisson sim RTD + Skellam theory + Continuous DDM sim RTD
+plt.figure(figsize=(7, 4), facecolor="white")
+bins = np.arange(0.0, 2.0 + 0.01, 0.01)  # 0:.01:2
+# Use the first color from the current cycle for the theory line
+cycle_colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['C0'])
+plt.hist(rt_data, bins=bins, density=True, alpha=0.45, label="Poisson sim", histtype="step")
+plt.hist(cont_rt_data, bins=bins, density=True, alpha=0.45, label="Continuous DDM sim", histtype="step")
+# plt.plot(t, pdf_values, linewidth=1.5, color=cycle_colors[0], label="Poisson theory")
+plt.xlabel("Time")
+plt.ylabel("Density")
+plt.title(f"Poisson DDM: mu1={mu1_true :.2f}, mu2={mu2_true :.2f}, theta sk={theta_true :.2f}, theta dd={theta_cont :.2f}")
+plt.legend()
+plt.xlim(0,1.5)
+plt.tight_layout()
+plt.show()
 
 
-if __name__ == "__main__":
-    main()
+# %%
+# calculate KS statistic btn sk_2 and dd_2
+ks_result = ks_2samp(sk_2, dd_2)
+ks_stat, p_value = ks_result.statistic, ks_result.pvalue
+print(f'?? = {ks_stat}')
+baseline_payload = {
+    "sk_2": sk_2,
+    "dd_2": dd_2,
+    "ks_statistic": ks_stat,
+    "p_value": p_value,
+}
+
+output_path = Path("theta_2_no_corr_baseline_data.pkl")
+with output_path.open("wb") as f:
+    pickle.dump(baseline_payload, f)
+
+print(
+    f"KS statistic (sk_2 vs dd_2): {ks_stat:.4f}, p-value: {p_value:.4g}. "
+    f"Saved baseline data to {output_path}."
+)
+# %%
+ks2, _ = ks_2samp(sk_2, dd_2)
+print(f'KS statistic (sk_2 vs dd_2): {ks2:.4f}')
+
+ks3, _ = ks_2samp(sk_3, dd_3)
+print(f'KS statistic (sk_3 vs dd_3): {ks3:.4f}')
+# %%
+
+
+def plot_ecdf(data, label, **kwargs):
+    x = np.sort(data)
+    y = np.arange(1, len(x) + 1) / len(x)
+    plt.plot(x, y, label=label, **kwargs)
+
+# Plot CDF for theta=2
+plt.figure(figsize=(8, 6))
+plt.subplot(1, 2, 1)
+plot_ecdf(sk_2, 'Skellam θ=2', linestyle='--', color='k', alpha=0.3, lw=2)
+plot_ecdf(dd_2, 'DDM θ=2', color='blue')
+plt.xlabel('Time')
+plt.ylabel('CDF')
+plt.title('Empirical CDF: θ=2')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# Plot CDF for theta=3
+plt.subplot(1, 2, 2)
+plot_ecdf(sk_3, 'Skellam θ=3', linestyle='--', color='k', alpha=0.3, lw=2)
+plot_ecdf(dd_3, 'DDM θ=3', color='red')
+plt.xlabel('Time')
+plt.ylabel('CDF')
+plt.title('Empirical CDF: θ=3')
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+# %%
+
+
+def compute_ecdf(data):
+    """Return sorted x values and corresponding CDF y values"""
+    x = np.sort(data)
+    y = np.arange(1, len(x) + 1) / len(x)
+    return x, y
+
+# Compute ECDFs for theta=2
+x_sk_2, y_sk_2 = compute_ecdf(sk_2)
+x_dd_2, y_dd_2 = compute_ecdf(dd_2)
+
+# Compute ECDFs for theta=3
+x_sk_3, y_sk_3 = compute_ecdf(sk_3)
+x_dd_3, y_dd_3 = compute_ecdf(dd_3)
+
+# Plot absolute differences
+plt.figure(figsize=(8, 6))
+
+# Plot difference for theta=2
+plt.subplot(1, 2, 1)
+# Interpolate to same x-grid for comparison
+x_grid_2 = np.linspace(0, max(x_sk_2[-1], x_dd_2[-1]), 1000)
+y_sk_2_interp = np.interp(x_grid_2, x_sk_2, y_sk_2)
+y_dd_2_interp = np.interp(x_grid_2, x_dd_2, y_dd_2)
+diff_2 = np.abs(y_sk_2_interp - y_dd_2_interp)
+
+plt.plot(x_grid_2, diff_2, color='blue', linewidth=2)
+plt.xlabel('Time')
+plt.ylabel('|CDF_Skellam - CDF_DDM|')
+plt.title('Absolute CDF Difference: θ=2')
+plt.grid(True, alpha=0.3)
+max_diff_2 = np.max(diff_2)
+plt.axhline(y=max_diff_2, color='red', linestyle='--', alpha=0.5, label=f'Max diff: {max_diff_2:.4f}')
+plt.legend()
+
+# Plot difference for theta=3
+plt.subplot(1, 2, 2)
+x_grid_3 = np.linspace(0, max(x_sk_3[-1], x_dd_3[-1]), 1000)
+y_sk_3_interp = np.interp(x_grid_3, x_sk_3, y_sk_3)
+y_dd_3_interp = np.interp(x_grid_3, x_dd_3, y_dd_3)
+diff_3 = np.abs(y_sk_3_interp - y_dd_3_interp)
+
+plt.plot(x_grid_3, diff_3, color='red', linewidth=2)
+plt.xlabel('Time')
+plt.ylabel('|CDF_Skellam - CDF_DDM|')
+plt.title('Absolute CDF Difference: θ=3')
+plt.grid(True, alpha=0.3)
+max_diff_3 = np.max(diff_3)
+plt.axhline(y=max_diff_3, color='blue', linestyle='--', alpha=0.5, label=f'Max diff: {max_diff_3:.4f}')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+print(f"Maximum CDF differences:")
+print(f"  θ=2: {max_diff_2:.4f}")
+print(f"  θ=3: {max_diff_3:.4f}") 

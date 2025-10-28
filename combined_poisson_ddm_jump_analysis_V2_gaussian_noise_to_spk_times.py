@@ -19,22 +19,23 @@ N_sim_rtd = int(2*50e3)  # Number of trials for RTD (reaction time distribution)
 # instead of N, c is hardcoded. 
 # N_right_and_left = 50
 c = 0.01
-corr_factor = 5
+corr_factor = 2
 # 
 N_right_and_left = round(((corr_factor - 1)/c) + 1)
-N_right = N_right_and_left  
+# N_right_and_left = 10 + 1
+N_right = N_right_and_left
 N_left = N_right_and_left   
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 # tweak
-theta = 2.5
+theta = 2
 # theta = 10
 theta_scaled = theta * corr_factor
 
 # get from model fits
 lam = 1.3
 l = 0.9
-Nr0 = 13.3 
+Nr0 = 13.3
 # Nr0 = 100
 exponential_noise_to_spk_time = 0 # Scale parameter in seconds
 # exponential_noise_to_spk_time = 1e-3 # Scale parameter in seconds
@@ -100,6 +101,23 @@ def generate_correlated_pool(N, c, r, T, rng):
     """
     pool_spikes = {}
     
+    # Handle zero correlation case: generate independent spikes for each neuron
+    if c == 0:
+        for i in range(N):
+            n_spikes = rng.poisson(r * T)
+            neuron_spikes = np.sort(rng.random(n_spikes) * T)
+            
+            # Add Exponential noise to spike timings (always positive delays)
+            noise = rng.exponential(scale=exponential_noise_to_spk_time, size=len(neuron_spikes))
+            neuron_spikes = neuron_spikes + noise
+            # Ensure spike times remain within [0, T] and are sorted
+            neuron_spikes = np.clip(neuron_spikes, 0, T)
+            neuron_spikes = np.sort(neuron_spikes)
+            
+            pool_spikes[i] = neuron_spikes
+        return pool_spikes
+    
+    # Standard correlated case (c > 0)
     source_rate = r / c
     n_source_spikes = rng.poisson(source_rate * T)
     source_spk_timings = np.sort(rng.random(n_source_spikes) * T)
@@ -206,6 +224,9 @@ corr_factor_ddm = 1
 sigma_sq = N_neurons * (r_right + r_left) * corr_factor_ddm
 sigma = sigma_sq**0.5
 theta_ddm = theta
+# theta_ddm = 2.5
+# print('## WARNING ##')
+# print('## theta_ddm is hardcoded to 2.5 ##')
 
 print(f'\n=== DDM PARAMETERS ===')
 print(f'mu = {mu}')
@@ -359,6 +380,7 @@ ax1.set_title(
     f'mu = {mu:.2f}, sigma = {sigma:.2f}, λ_spike = {exponential_noise_to_spk_time:.4f}s',
     fontsize=13, fontweight='bold'
 )
+ax1.set_ylim(-1.7, 1.7)
 ax1.legend(loc='upper right')
 ax1.grid(axis='y', alpha=0.3)
 ax1.set_xlim(0, 2)
