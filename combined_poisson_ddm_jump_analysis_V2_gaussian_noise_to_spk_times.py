@@ -14,25 +14,29 @@ from joblib import Parallel, delayed
 # ===================================================================
 
 N_sim = 100  # Number of trials for jump distribution analysis
-N_sim_rtd = int(2*50e3)  # Number of trials for RTD (reaction time distribution)
+N_sim_rtd = int(1   *50e3)  # Number of trials for RTD (reaction time distribution)
 
 # instead of N, c is hardcoded. 
 # N_right_and_left = 50
-c = 0.01
-corr_factor = 2
+
+##### NOTE #############################
+## Corr factor is hardcoded to 1 #######
+########################################
+corr_factor = 1
 # 
-N_right_and_left = round(((corr_factor - 1)/c) + 1)
-# N_right_and_left = 10 + 1
+# N_right_and_left = round(((corr_factor - 1)/c) + 1)
+N_right_and_left = 100 + 1
+c = 0.01
+# c = 1/N_right_and_left
 N_right = N_right_and_left
 N_left = N_right_and_left   
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
-# tweak
+
 theta = 2
-# theta = 10
 theta_scaled = theta * corr_factor
 
-# get from model fits
+# random animal's params
 lam = 1.3
 l = 0.9
 Nr0 = 13.3
@@ -199,7 +203,7 @@ with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
 results_array = np.array(results)
 end_time = time.time()
 print(f"Correlated spikes simulation took: {end_time - start_time:.2f} seconds")
-
+print(f"## CORR spiking: mean RT is {np.mean(results_array[:, 0]):.4f}")
 # Summary Statistics
 decision_made_mask = ~np.isnan(results_array[:, 0])
 mean_rt = np.mean(results_array[decision_made_mask, 0])
@@ -265,7 +269,7 @@ ddm_results = Parallel(n_jobs=-1)(
 ddm_data = np.array(ddm_results)
 end_time_ddm = time.time()
 print(f"DDM simulation took: {end_time_ddm - start_time_ddm:.2f} seconds")
-
+print(f"## DDM: mean RT is {np.mean(ddm_data[:, 0]):.4f}" )
 # ===================================================================
 # 5. EVIDENCE JUMP DISTRIBUTION ANALYSIS
 # ===================================================================
@@ -380,7 +384,7 @@ ax1.set_title(
     f'mu = {mu:.2f}, sigma = {sigma:.2f}, λ_spike = {exponential_noise_to_spk_time:.4f}s',
     fontsize=13, fontweight='bold'
 )
-ax1.set_ylim(-1.7, 1.7)
+# ax1.set_ylim(-1.7, 1.7)
 ax1.legend(loc='upper right')
 ax1.grid(axis='y', alpha=0.3)
 ax1.set_xlim(0, 2)
