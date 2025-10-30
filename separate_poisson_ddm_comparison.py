@@ -1,54 +1,37 @@
- # Combined Analysis: Poisson Spiking Model, DDM, and Evidence Jump Distribution
+# Separated Poisson and DDM Simulation with RT Histogram Comparison
 # %%
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from collections import Counter
 from tqdm import tqdm
 import multiprocessing
 import time
 from joblib import Parallel, delayed
 
 # ===================================================================
-# 1. PARAMETERS
+# 1. SHARED PARAMETERS
 # ===================================================================
 
-N_sim = 100  # Number of trials for jump distribution analysis
-N_sim_rtd = int(2   *50e3)  # Number of trials for RTD (reaction time distribution)
+N_sim_rtd = int(2 * 50e3)  # Number of trials for RTD (reaction time distribution)
 
-# instead of N, c is hardcoded. 
-# N_right_and_left = 50
-
-##### NOTE #############################
-## Corr factor is hardcoded to 1 #######
-########################################
-# 
-# N_right_and_left = round(((corr_factor - 1)/c) + 1)
 N_right_and_left = 100 + 1
 c = 0.01
 
 corr_factor = 1 + (N_right_and_left - 1)*c
-# c = 1/N_right_and_left
 N_right = N_right_and_left
 N_left = N_right_and_left   
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 
-theta = 10
+theta = 6
 theta_scaled = theta * corr_factor
 
-# random animal's params
+# Random animal's params
 lam = 1.3
 l = 0.9
-Nr0 = 13.3 * 9
-# Nr0 = 100
-exponential_noise_to_spk_time = 0 # Scale parameter in seconds
-# exponential_noise_to_spk_time = 1e-3 # Scale parameter in seconds
+Nr0 = 13.3 * 3
+exponential_noise_to_spk_time = 0  # Scale parameter in seconds
 
-# correlation and base firing rate
-# c = (corr_factor - 1) / (N_right_and_left - 1)
-# if c < 0 or c >1:
-#     raise ValueError("Correlation must be between 0 and 1")
 r0 = Nr0/N_right_and_left
 r0_scaled = r0 * corr_factor
 
@@ -59,7 +42,7 @@ l_db = (2*abl - ild)/2
 pr = (10 ** (r_db/20))
 pl = (10 ** (l_db/20))
 
-den = (pr ** (lam * l) ) + ( pl ** (lam * l) )
+den = (pr ** (lam * l)) + (pl ** (lam * l))
 rr = (pr ** lam) / den
 rl = (pl ** lam) / den
 
@@ -67,17 +50,13 @@ rl = (pl ** lam) / den
 r_right_scaled = r0_scaled * rr
 r_left_scaled = r0_scaled * rl
 
-
 # Unscaled firing rates (for DDM)
 r_right = r0 * rr
 r_left = r0 * rl
 
-
 T = 20  # Max duration of a single trial (seconds)
 
-# Gaussian noise parameter for spike timing jitter
-
-print(f'Parameters:')
+print(f'=== SHARED PARAMETERS ===')
 print(f'  corr = {c:.4f}')
 print(f'  N = {N_right_and_left}')
 print(f'  theta (unscaled) = {theta}')
@@ -89,14 +68,10 @@ print(f'  r_right (unscaled, for DDM) = {r_right:.4f}')
 print(f'  r_left (unscaled, for DDM) = {r_left:.4f}')
 print(f'  r_right_scaled (for Poisson) = {r_right_scaled:.4f}')
 print(f'  r_left_scaled (for Poisson) = {r_left_scaled:.4f}')
-print(f'  N * r_right (unscaled) = {N_right_and_left * r_right:.4f}')
-print(f'  N * r_left (unscaled) = {N_right_and_left * r_left:.4f}')
-print(f'  N * r_right_scaled = {N_right_and_left * r_right_scaled:.4f}')
-print(f'  N * r_left_scaled = {N_right_and_left * r_left_scaled:.4f}')
 print(f'  exponential_noise_to_spk_time = {exponential_noise_to_spk_time:.4f} s')
 
 # ===================================================================
-# 2. SPIKE GENERATION FUNCTIONS
+# 2. POISSON SIMULATION CODE
 # ===================================================================
 
 def generate_correlated_pool(N, c, r, T, rng):
@@ -142,11 +117,8 @@ def generate_correlated_pool(N, c, r, T, rng):
     
     return pool_spikes
 
-# ===================================================================
-# 3. POISSON SPIKING MODEL
-# ===================================================================
 
-def run_single_trial(args):
+def run_single_poisson_trial(args):
     """Runs a single trial of the Poisson spiking simulation."""
     trial_idx, seed = args
     rng_local = np.random.default_rng(seed + trial_idx)
@@ -195,48 +167,48 @@ def run_single_trial(args):
     else:
         return (np.nan, 0)
 
+
 print(f'\n=== POISSON SPIKING MODEL SIMULATION ===')
-start_time = time.time()
+start_time_poisson = time.time()
 master_seed = 42
 tasks = [(i, master_seed) for i in range(N_sim_rtd)]
 with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-    results = list(tqdm(pool.imap(run_single_trial, tasks), total=N_sim_rtd, desc="Simulating Correlated Spikes"))
-results_array = np.array(results)
-end_time = time.time()
-print(f"Correlated spikes simulation took: {end_time - start_time:.2f} seconds")
-print(f"## CORR spiking: mean RT is {np.mean(results_array[:, 0]):.4f}")
-# Summary Statistics
-decision_made_mask = ~np.isnan(results_array[:, 0])
-mean_rt = np.mean(results_array[decision_made_mask, 0])
-choices = results_array[:, 1]
-prop_pos = np.sum(choices == 1) / N_sim_rtd
-prop_neg = np.sum(choices == -1) / N_sim_rtd
-prop_no_decision = np.sum(choices == 0) / N_sim_rtd
+    poisson_results = list(tqdm(pool.imap(run_single_poisson_trial, tasks), 
+                                 total=N_sim_rtd, desc="Simulating Poisson"))
+poisson_results_array = np.array(poisson_results)
+end_time_poisson = time.time()
 
-print(f"Mean Reaction Time (for decided trials): {mean_rt:.4f} s")
-print(f"Proportion of Positive (+1) choices: {prop_pos:.2%}")
-print(f"Proportion of Negative (-1) choices: {prop_neg:.2%}")
-print(f"Proportion of No-Decision (0) trials: {prop_no_decision:.2%}")
+print(f"Poisson simulation took: {end_time_poisson - start_time_poisson:.2f} seconds")
+
+# Summary Statistics for Poisson
+decision_made_mask = ~np.isnan(poisson_results_array[:, 0])
+poisson_mean_rt = np.mean(poisson_results_array[decision_made_mask, 0])
+poisson_choices = poisson_results_array[:, 1]
+poisson_prop_pos = np.sum(poisson_choices == 1) / N_sim_rtd
+poisson_prop_neg = np.sum(poisson_choices == -1) / N_sim_rtd
+poisson_prop_no_decision = np.sum(poisson_choices == 0) / N_sim_rtd
+
+print(f"Mean Reaction Time: {poisson_mean_rt:.4f} s")
+print(f"Proportion of Positive choices: {poisson_prop_pos:.2%}")
+print(f"Proportion of Negative choices: {poisson_prop_neg:.2%}")
+print(f"Proportion of No-Decision trials: {poisson_prop_no_decision:.2%}")
 
 # ===================================================================
-# 4. CONTINUOUS DDM MODEL
+# 3. DDM SIMULATION CODE
 # ===================================================================
 
 N_neurons = N_right
 mu = N_neurons * (r_right - r_left)
-# corr_factor_ddm = 1 + ((N_neurons - 1) * c)
 corr_factor_ddm = 1
 sigma_sq = N_neurons * (r_right + r_left) * corr_factor_ddm
 sigma = sigma_sq**0.5
 theta_ddm = theta
-# theta_ddm = 2.5
-# print('## WARNING ##')
-# print('## theta_ddm is hardcoded to 2.5 ##')
 
 print(f'\n=== DDM PARAMETERS ===')
 print(f'mu = {mu}')
 print(f'sigma = {sigma}')
 print(f'theta_ddm = {theta_ddm}')
+
 
 def simulate_single_ddm_trial(trial_idx, mu, sigma, theta_ddm, dt, dB, n_steps):
     """Simulate a single DDM trial."""
@@ -256,11 +228,11 @@ def simulate_single_ddm_trial(trial_idx, mu, sigma, theta_ddm, dt, dB, n_steps):
     # No decision made within time limit
     return (np.nan, 0)
 
+
 dt = 1e-4
 dB = 1e-2
 n_steps = int(T/dt)
 
-# Parallel DDM simulation
 print(f'\n=== DDM SIMULATION ===')
 start_time_ddm = time.time()
 ddm_results = Parallel(n_jobs=-1)(
@@ -269,84 +241,136 @@ ddm_results = Parallel(n_jobs=-1)(
 )
 ddm_data = np.array(ddm_results)
 end_time_ddm = time.time()
+
 print(f"DDM simulation took: {end_time_ddm - start_time_ddm:.2f} seconds")
-print(f"## DDM: mean RT is {np.mean(ddm_data[:, 0]):.4f}" )
-# ===================================================================
-# 5. EVIDENCE JUMP DISTRIBUTION ANALYSIS
-# ===================================================================
 
-def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T):
-    """
-    Runs a single trial, bins spike times into bins of size dt_bin,
-    and returns the spike difference (R - L) for each time bin.
-    """
-    rng_local = np.random.default_rng(seed + trial_idx)
-    
-    # Generate all spike trains for this trial (using scaled rates)
-    right_pool_spikes = generate_correlated_pool(N_right, c, r_right_scaled, T, rng_local)
-    left_pool_spikes = generate_correlated_pool(N_left, c, r_left_scaled, T, rng_local)
-    
-    # Consolidate all spikes
-    all_right_spikes = np.concatenate(list(right_pool_spikes.values()))
-    all_left_spikes = np.concatenate(list(left_pool_spikes.values()))
-    
-    # Create time bins
-    n_bins = int(np.ceil(T / dt_bin))
-    time_bins = np.arange(0, T + dt_bin, dt_bin)
-    
-    # Count spikes in each bin
-    right_counts, _ = np.histogram(all_right_spikes, bins=time_bins)
-    left_counts, _ = np.histogram(all_left_spikes, bins=time_bins)
-    
-    # Compute difference (R - L) for each bin
-    spike_differences = right_counts - left_counts
-    
-    return spike_differences
+# Summary Statistics for DDM
+ddm_decision_made_mask = ~np.isnan(ddm_data[:, 0])
+ddm_mean_rt = np.mean(ddm_data[ddm_decision_made_mask, 0])
+ddm_choices = ddm_data[:, 1]
+ddm_prop_pos = np.sum(ddm_choices == 1) / N_sim_rtd
+ddm_prop_neg = np.sum(ddm_choices == -1) / N_sim_rtd
+ddm_prop_no_decision = np.sum(ddm_choices == 0) / N_sim_rtd
 
-# %%
-# Time-binned analysis
-dt_bin = 1e-3
-
-print(f'\n=== EVIDENCE JUMP DISTRIBUTION ANALYSIS ===')
-print(f'Collecting binned spike differences from {N_sim} trials...')
-print(f'Time bin size: dt = {dt_bin*1000:.2f} ms')
-
-all_bin_differences = []
-
-for trial_idx in range(N_sim):
-    bin_diffs = get_trial_binned_spike_differences(trial_idx, master_seed, dt_bin, T)
-    all_bin_differences.extend(bin_diffs)
-
-all_bin_differences = np.array(all_bin_differences)
-print(f'Total number of time bins analyzed: {len(all_bin_differences)}')
-
-# Analyze the distribution
-min_diff = int(all_bin_differences.min())
-max_diff = int(all_bin_differences.max())
-hist_bins = np.arange(min_diff - 0.5, max_diff + 1.5, 1)  # Bin edges around integers
-bin_diff_frequencies, bin_edges = np.histogram(all_bin_differences, bins=hist_bins)
-bin_diff_values = np.arange(min_diff, max_diff + 1)  # Integer values
-
-print(f'\nBinned spike difference distribution computed.')
-
+print(f"Mean Reaction Time: {ddm_mean_rt:.4f} s")
+print(f"Proportion of Positive choices: {ddm_prop_pos:.2%}")
+print(f"Proportion of Negative choices: {ddm_prop_neg:.2%}")
+print(f"Proportion of No-Decision trials: {ddm_prop_no_decision:.2%}")
 # %%
 # ===================================================================
-# 6. COMBINED 2x1 PLOT
+# 4. PLOT HISTOGRAMS OF REACTION TIMES (NOT SEPARATED BY CHOICE)
 # ===================================================================
 
-fig, axes = plt.subplots(2, 1, figsize=(15, 12))
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
-# --- TOP PLOT: Poisson and DDM RT Distributions ---
+# Extract RTs (excluding no-decision trials)
+poisson_rts = poisson_results_array[decision_made_mask, 0]
+ddm_rts = ddm_data[ddm_decision_made_mask, 0]
+
+# Determine common x-axis limits
+max_rt = max(np.max(poisson_rts), np.max(ddm_rts))
+bins = np.linspace(0, max_rt, 50)
+
+# --- LEFT PLOT: Poisson RT Histogram ---
 ax1 = axes[0]
+ax1.hist(poisson_rts, bins=bins, alpha=0.7, color='blue', edgecolor='black', density=True, histtype='step')
+ax1.set_xlabel('Reaction Time (s)', fontsize=12)
+ax1.set_ylabel('Density', fontsize=12)
+ax1.set_title(
+    f'Poisson Model - Reaction Time Distribution\n'
+    f'N={N_right_and_left}, θ={theta_scaled:.2f}, corr={c:.4f}\n'
+    f'Mean RT: {poisson_mean_rt:.4f} s',
+    fontsize=12, fontweight='bold'
+)
+ax1.grid(axis='y', alpha=0.3)
+ax1.set_xlim(0, max_rt)
 
-max_T_plot = np.max(results_array[(results_array[:, 1] == 1), 0])
+# --- RIGHT PLOT: DDM RT Histogram ---
+ax2 = axes[1]
+ax2.hist(ddm_rts, bins=bins, alpha=0.7, color='red', edgecolor='black', density=True, histtype='step')
+ax2.set_xlabel('Reaction Time (s)', fontsize=12)
+ax2.set_ylabel('Density', fontsize=12)
+ax2.set_title(
+    f'DDM - Reaction Time Distribution\n'
+    f'μ={mu:.2f}, σ={sigma:.2f}, θ={theta_ddm:.2f}\n'
+    f'Mean RT: {ddm_mean_rt:.4f} s',
+    fontsize=12, fontweight='bold'
+)
+ax2.grid(axis='y', alpha=0.3)
+ax2.set_xlim(0, max_rt)
+
+plt.tight_layout()
+plt.savefig('poisson_vs_ddm_rt_histograms.png', dpi=150, bbox_inches='tight')
+print(f'\n=== PLOT SAVED ===')
+print(f'Figure saved to: poisson_vs_ddm_rt_histograms.png')
+plt.show()
+# %%
+# ===================================================================
+# 5. OVERLAY PLOT (Optional: both distributions on same axes)
+# ===================================================================
+
+fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+bins = np.arange(0,5,0.01)
+ax.hist(poisson_rts, bins=bins, alpha=0.5, color='blue', edgecolor='black', 
+        density=True, label=f'Poisson (Mean RT: {poisson_mean_rt:.4f}s)', histtype='step')
+ax.hist(ddm_rts, bins=bins, alpha=0.5, color='red', edgecolor='black', 
+        density=True, label=f'DDM (Mean RT: {ddm_mean_rt:.4f}s)', histtype='step')
+
+ax.set_xlabel('Reaction Time (s)', fontsize=12)
+ax.set_ylabel('Density', fontsize=12)
+ax.set_title(
+    f'Poisson vs DDM - Reaction Time Distribution Comparison\n'
+    f'N={N_right_and_left}, corr={c:.4f}, θ={theta:.2f}',
+    fontsize=13, fontweight='bold'
+)
+ax.legend(fontsize=11)
+ax.grid(axis='y', alpha=0.3)
+ax.set_xlim(0, max_rt)
+
+plt.tight_layout()
+plt.savefig('poisson_vs_ddm_rt_overlay.png', dpi=150, bbox_inches='tight')
+print(f'Overlay figure saved to: poisson_vs_ddm_rt_overlay.png')
+plt.show()
+
+# ===================================================================
+# 6. SUMMARY STATISTICS
+# ===================================================================
+
+print(f'\n=== FINAL SUMMARY ===')
+print(f'\n--- Poisson Model ---')
+print(f'Total trials: {N_sim_rtd}')
+print(f'Decided trials: {np.sum(decision_made_mask)}')
+print(f'Mean RT: {poisson_mean_rt:.4f} s')
+print(f'Positive choices: {poisson_prop_pos:.2%}')
+print(f'Negative choices: {poisson_prop_neg:.2%}')
+print(f'No decision: {poisson_prop_no_decision:.2%}')
+
+print(f'\n--- DDM ---')
+print(f'Total trials: {N_sim_rtd}')
+print(f'Decided trials: {np.sum(ddm_decision_made_mask)}')
+print(f'Mean RT: {ddm_mean_rt:.4f} s')
+print(f'Positive choices: {ddm_prop_pos:.2%}')
+print(f'Negative choices: {ddm_prop_neg:.2%}')
+print(f'No decision: {ddm_prop_no_decision:.2%}')
+
+# %%
+# ===================================================================
+# 6. PLOT SEPARATED BY CHOICE (like original plot)
+# ===================================================================
+
+fig, ax = plt.subplots(1, 1, figsize=(14, 8))
+
+# Determine bins for RT histograms
+max_T_plot = max(np.max(poisson_rts), np.max(ddm_rts))
 bins_rt = np.arange(0, max_T_plot, max_T_plot / 1000)
 
-pos_rts_poisson = results_array[(results_array[:, 1] == 1), 0]
-neg_rts_poisson = results_array[(results_array[:, 1] == -1), 0]
+# Separate by choice for Poisson
+pos_rts_poisson = poisson_results_array[(poisson_results_array[:, 1] == 1), 0]
+neg_rts_poisson = poisson_results_array[(poisson_results_array[:, 1] == -1), 0]
 pos_hist_poisson, _ = np.histogram(pos_rts_poisson, bins=bins_rt, density=True)
 neg_hist_poisson, _ = np.histogram(neg_rts_poisson, bins=bins_rt, density=True)
 
+# Separate by choice for DDM
 pos_rts_ddm = ddm_data[(ddm_data[:, 1] == 1), 0]
 neg_rts_ddm = ddm_data[(ddm_data[:, 1] == -1), 0]
 pos_hist_ddm, _ = np.histogram(pos_rts_ddm, bins=bins_rt, density=True)
@@ -365,70 +389,35 @@ ddm_down = len(neg_rts_ddm)
 ddm_frac_up = ddm_up / (ddm_up + ddm_down)
 ddm_frac_down = ddm_down / (ddm_up + ddm_down)
 
-ax1.plot(bin_centers, pos_hist_poisson * poisson_frac_up, label='Poisson - Positive Choice', 
-         color='blue', linestyle='-', linewidth=2)
-ax1.plot(bin_centers, -neg_hist_poisson * poisson_frac_down, label='Poisson - Negative Choice', 
-         color='blue', linestyle='-', linewidth=2)
-ax1.plot(bin_centers, pos_hist_ddm * ddm_frac_up, label='DDM - Positive Choice', 
-         color='red', linestyle='-', linewidth=4, alpha=0.3)
-ax1.plot(bin_centers, -neg_hist_ddm * ddm_frac_down, label='DDM - Negative Choice', 
-         color='red', linestyle='-', linewidth=4, alpha=0.3)
+# Plot Poisson results
+ax.plot(bin_centers, pos_hist_poisson * poisson_frac_up, 
+        label='Poisson - Positive Choice', color='blue', linestyle='-', linewidth=2)
+ax.plot(bin_centers, -neg_hist_poisson * poisson_frac_down, 
+        label='Poisson - Negative Choice', color='blue', linestyle='-', linewidth=2)
 
-ax1.axhline(0, color='black', linestyle='-', linewidth=0.5)
-ax1.set_xlabel("Reaction Time (s)", fontsize=12)
-ax1.set_ylabel("Density", fontsize=12)
-ax1.set_title(
-    f'Reaction Time Distributions: Poisson vs DDM (with Exponential spike timing jitter)\n'
-    f'Poisson: θ={theta_scaled}, r_R={r_right_scaled:.4f}, r_L={r_left_scaled:.4f} (scaled) | '
-    f'DDM: θ={theta}, r_R={r_right:.4f}, r_L={r_left:.4f} (unscaled)\n'
+# Plot DDM results
+ax.plot(bin_centers, pos_hist_ddm * ddm_frac_up, 
+        label='DDM - Positive Choice', color='red', linestyle='-', linewidth=4, alpha=0.3)
+ax.plot(bin_centers, -neg_hist_ddm * ddm_frac_down, 
+        label='DDM - Negative Choice', color='red', linestyle='-', linewidth=4, alpha=0.3)
+
+ax.axhline(0, color='black', linestyle='-', linewidth=0.5)
+ax.set_xlabel("Reaction Time (s)", fontsize=12)
+ax.set_ylabel("Density", fontsize=12)
+ax.set_title(
+    f'Reaction Time Distributions Separated by Choice: Poisson vs DDM\n'
+    f'Poisson: θ={theta_scaled:.2f}, r_R={r_right_scaled:.4f}, r_L={r_left_scaled:.4f} (scaled) | '
+    f'DDM: θ={theta:.2f}, r_R={r_right:.4f}, r_L={r_left:.4f} (unscaled)\n'
     f'N = {N_right_and_left}, corr = {c:.4f}, corr_factor = {corr_factor:.3f}, '
-    f'mu = {mu:.2f}, sigma = {sigma:.2f}, λ_spike = {exponential_noise_to_spk_time:.4f}s',
+    f'mu = {mu:.2f}, sigma = {sigma:.2f}',
     fontsize=13, fontweight='bold'
 )
-# ax1.set_ylim(-1.7, 1.7)
-ax1.legend(loc='upper right')
-ax1.grid(axis='y', alpha=0.3)
-ax1.set_xlim(0, 2)
+ax.legend(loc='upper right', fontsize=10)
+ax.grid(axis='y', alpha=0.3)
+ax.set_xlim(0, 2)
 
-# --- BOTTOM PLOT: Evidence Jump Distribution (Time-binned) ---
-ax2 = axes[1]
-
-ax2.bar(bin_diff_values, bin_diff_frequencies, width=0.8, alpha=0.7, 
-        edgecolor='black', color='steelblue')
-ax2.set_xlabel('Spike Difference (R - L) per Time Bin', fontsize=12)
-ax2.set_ylabel('Count', fontsize=12)
-ax2.set_title(
-    f'Evidence Jump Distribution (Time-binned at dt = {dt_bin*1000:.2f} ms)\n'
-    f'{N_sim} trials, {len(all_bin_differences)} total bins',
-    fontsize=13, fontweight='bold'
-)
-ax2.grid(axis='y', alpha=0.3)
-ax2.set_xticks(bin_diff_values[::max(1, len(bin_diff_values)//20)])  # Show subset of ticks
-ax2.set_yscale('log')
 plt.tight_layout()
-plt.savefig('combined_poisson_ddm_jump_analysis.png', dpi=150, bbox_inches='tight')
-print(f'\n=== PLOT SAVED ===')
-print(f'Figure saved to: combined_poisson_ddm_jump_analysis.png')
+plt.savefig('poisson_vs_ddm_rt_separated_by_choice.png', dpi=150, bbox_inches='tight')
+print(f'\n=== CHOICE-SEPARATED PLOT SAVED ===')
+print(f'Figure saved to: poisson_vs_ddm_rt_separated_by_choice.png')
 plt.show()
-
-# ===================================================================
-# 7. SUMMARY STATISTICS
-# ===================================================================
-
-print(f'\n=== SUMMARY STATISTICS ===')
-print(f'\n--- Poisson Model ---')
-print(f'Mean RT: {mean_rt:.4f} s')
-print(f'Positive choices: {prop_pos:.2%}')
-print(f'Negative choices: {prop_neg:.2%}')
-print(f'No decision: {prop_no_decision:.2%}')
-
-print(f'\n--- Evidence Jump Distribution ---')
-print(f'Mean jump value: {np.mean(all_bin_differences):.4f}')
-print(f'Std dev of jumps: {np.std(all_bin_differences):.4f}')
-print(f'Min jump: {np.min(all_bin_differences):.0f}')
-print(f'Max jump: {np.max(all_bin_differences):.0f}')
-print(f'Proportion of positive jumps: {np.sum(all_bin_differences > 0) / len(all_bin_differences):.4f}')
-print(f'Proportion of negative jumps: {np.sum(all_bin_differences < 0) / len(all_bin_differences):.4f}')
-print(f'Proportion of zero jumps: {np.sum(all_bin_differences == 0) / len(all_bin_differences):.4f}')
-
-# %%

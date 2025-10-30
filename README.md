@@ -135,6 +135,26 @@ A systematic comparison framework for studying correlated Poisson spiking models
 ### Output
 - `results/` - Folder containing individual pickle files for each parameter combination with Poisson results, DDM results, and evidence distributions
 
+## BADS Optimization and Model Comparison
+
+Scripts for optimizing Poisson model parameters to match DDM behavior using Bayesian Adaptive Direct Search (BADS).
+
+### Core BADS Files
+- `bads_utils.py` - Utility functions for BADS optimization: DDM and Poisson simulation functions, objective functions (KS-statistic), rate calculations from ABL/ILD
+- `bads_find_optimum_params.py` - BADS optimization to find optimal Poisson parameters [N, r_right, r_left, k, theta] that minimize KS-statistic vs DDM reaction time distributions
+- `bads_find_optimium_params_single_rate.py` - BADS optimization with constraint that left and right rates are equal [N, r, k, theta]; fits single symmetric rate parameter
+- `bads_tests.py` - Testing and validation scripts for BADS optimization setup
+
+### Analysis and Results
+- `BADS_RESULTS_README.md` - Detailed documentation of BADS optimization results, parameter interpretations, and model comparisons
+- `analyse_bads_result.py` - Comprehensive analysis of BADS optimization results: compares DDM vs optimized Poisson RTDs, plots histograms/CDFs, calculates KS-statistics, generates parameter comparison tables
+- `analyse_bads_psycho.py` - Psychometric curve analysis comparing DDM (analytical) vs Poisson (simulated) across multiple ABL/ILD conditions; uses simulation-based approach to properly account for spike correlations; saves results to timestamped pickle files
+- `example_load_bads.py` - Example script demonstrating how to load and inspect BADS optimization pickle results
+- `load_bads_results.py` - Utility functions for loading and parsing BADS optimization results from pickle files
+
+### Comparison Studies
+- `separate_poisson_ddm_comparison.py` - Side-by-side comparison of Poisson and DDM models with separate parameter sets and visualization
+
 ## Usage
 
 Use .venv library
