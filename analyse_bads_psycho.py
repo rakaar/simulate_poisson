@@ -62,9 +62,28 @@ print(f"Total conditions: {len(ABL_values) * len(ILD_values)}")
 N_trials_per_condition = int(50e3)  # 50K trials per condition
 
 # Calculate rate scaling factor (constant, based on optimization result)
-r_ddm_effective = ddm_params['Nr0'] / N_opt
-ratio_r = r_opt / r_ddm_effective
+# Use the stimulus from the original optimization
+ABL_opt = ddm_stimulus['ABL']
+ILD_opt = ddm_stimulus['ILD']
 
+# Calculate DDM rates at the optimization stimulus
+ddm_right_rate_opt, ddm_left_rate_opt = lr_rates_from_ABL_ILD(
+    ABL_opt, ILD_opt, ddm_params['Nr0'], ddm_params['lam'], ddm_params['ell']
+)
+
+# Verify rates are equal (they should be for ILD=0)
+print(f"\nDDM rates at optimization stimulus (ABL={ABL_opt}, ILD={ILD_opt}):")
+print(f"  Right rate: {ddm_right_rate_opt:.6f}")
+print(f"  Left rate:  {ddm_left_rate_opt:.6f}")
+print(f"  Rates equal: {np.isclose(ddm_right_rate_opt, ddm_left_rate_opt)}")
+
+# %%
+# Calculate effective rate per neuron
+r_ddm_effective = ddm_right_rate_opt / N_opt
+ratio_r = r_opt / r_ddm_effective
+print(f'\nrate_r_ddm_effective = {r_ddm_effective:.6f}')
+print(f'ratio_r = {ratio_r:.6f}')
+# %%
 print("\n=== SIMULATING POISSON MODEL ===")
 print(f"Trials per condition: {N_trials_per_condition}")
 print(f"Using optimized parameters: N={N_opt}, r={r_opt:.4f}, c={c_opt:.6f}, theta={theta_opt:.4f}")
@@ -79,18 +98,21 @@ total_conditions = len(ABL_values) * len(ILD_values)
 
 # Create nested progress bars
 for ABL in ABL_values:
+# for ABL in [40]:
     poisson_psychometric_data[ABL] = {}
     
     for ILD in tqdm(ILD_values, desc=f'ABL={ABL} dB', ncols=100):
+    # for ILD in [0]:
         # Calculate left and right rates for this stimulus
         r_right, r_left = lr_rates_from_ABL_ILD(
             ABL, ILD, ddm_params['Nr0'], ddm_params['lam'], ddm_params['ell']
         )
-        
         # Scale rates using the constant ratio_r
-        r_right_scaled = r_right * ratio_r
-        r_left_scaled = r_left * ratio_r
-        
+        # NOTE: lr_rates_from_ABL_ILD returns TOTAL population rates
+        # We need to divide by N to get per-neuron rates for the simulation
+        r_right_scaled = (r_right * ratio_r) / N_opt
+        r_left_scaled = (r_left * ratio_r) / N_opt
+
         # Set T_max = 2 for all conditions to speed up simulation
         T_max = 2
         

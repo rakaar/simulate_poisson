@@ -140,20 +140,31 @@ A systematic comparison framework for studying correlated Poisson spiking models
 Scripts for optimizing Poisson model parameters to match DDM behavior using Bayesian Adaptive Direct Search (BADS).
 
 ### Core BADS Files
-- `bads_utils.py` - Utility functions for BADS optimization: DDM and Poisson simulation functions, objective functions (KS-statistic), rate calculations from ABL/ILD
-- `bads_find_optimum_params.py` - BADS optimization to find optimal Poisson parameters [N, r_right, r_left, k, theta] that minimize KS-statistic vs DDM reaction time distributions
+- `bads_utils.py` - Utility functions for BADS optimization: DDM and Poisson simulation functions, objective functions (KS-statistic including multi-stimulus), rate calculations from ABL/ILD
+- `bads_find_optimum_params.py` - BADS optimization to find optimal Poisson parameters [N, r_right, r_left, k, theta] that minimize KS-statistic vs DDM reaction time distributions (single stimulus, ILD=0)
+- `bads_fit_non_zero_stim.py` - Multi-stimulus BADS optimization across 4 conditions (ABL=20/60, ILD=2/4); finds shared N, k, theta and stimulus-specific rates [r1, r2] that minimize sum of KS-statistics
 - `bads_find_optimium_params_single_rate.py` - BADS optimization with constraint that left and right rates are equal [N, r, k, theta]; fits single symmetric rate parameter
 - `bads_tests.py` - Testing and validation scripts for BADS optimization setup
+- `bads_SNR.py` - Signal-to-noise ratio analysis for BADS-optimized parameters
 
 ### Analysis and Results
 - `BADS_RESULTS_README.md` - Detailed documentation of BADS optimization results, parameter interpretations, and model comparisons
+- `ANALYTICAL_FORMULA_NOTES.md` - Mathematical notes and analytical formulas for Poisson DDM models
 - `analyse_bads_result.py` - Comprehensive analysis of BADS optimization results: compares DDM vs optimized Poisson RTDs, plots histograms/CDFs, calculates KS-statistics, generates parameter comparison tables
+- `analyse_bads_rtd.py` - Reaction time distribution analysis for BADS-optimized parameters
 - `analyse_bads_psycho.py` - Psychometric curve analysis comparing DDM (analytical) vs Poisson (simulated) across multiple ABL/ILD conditions; uses simulation-based approach to properly account for spike correlations; saves results to timestamped pickle files
+- `bads_psycho_analytic_poisson.py` - Analytical psychometric curve computation for Poisson models using BADS parameters
 - `example_load_bads.py` - Example script demonstrating how to load and inspect BADS optimization pickle results
 - `load_bads_results.py` - Utility functions for loading and parsing BADS optimization results from pickle files
 
 ### Comparison Studies
 - `separate_poisson_ddm_comparison.py` - Side-by-side comparison of Poisson and DDM models with separate parameter sets and visualization
+
+### Visualization and Plotting
+- `plot_phi_vs_c.py` - Plots correlation coefficient (phi) versus correlation parameter (c) to visualize relationship between theoretical and measured correlation
+
+### Debugging and Utilities
+- `debug_rates.py` - Debug and validation script for rate calculations and parameter transformations
 
 ## Usage
 

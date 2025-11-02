@@ -322,6 +322,89 @@ def objective_function_singlerate(x, ddm_rts_decided, n_trials=int(50e3), seed=4
         raise ValueError(f"Error in objective function: {e}")
 
 
+def objective_function_multistim(x, ddm_rts_decided_dict, n_trials=int(10e3), seed=42):
+    """
+    Objective function for BADS with multiple stimuli: compute sum of KS-statistics.
+    
+    This function optimizes parameters across 4 different stimuli by minimizing
+    the sum of KS distances between DDM and Poisson RT distributions.
+    
+    Args:
+        x: Array of parameters [N, k, theta, r1_20_2, r2_20_2, r1_20_4, r2_20_4, 
+                                 r1_60_2, r2_60_2, r1_60_4, r2_60_4]
+           - N, k, theta are shared across all stimuli
+           - Each stimulus has its own r1 (right rate) and r2 (left rate)
+        ddm_rts_decided_dict: Dictionary with keys like 'ABL_20_ILD_2' containing
+                              DDM reaction times (decided trials only, no NaNs)
+        n_trials: Number of Poisson trials to simulate per stimulus
+        seed: Random seed
+    
+    Returns:
+        Sum of KS statistics across all stimuli (to minimize)
+    """
+    # Extract shared parameters
+    N, k, theta = x[0], x[1], x[2]
+    
+    # Extract rates for each stimulus
+    # Order: r1_20_2, r2_20_2, r1_20_4, r2_20_4, r1_60_2, r2_60_2, r1_60_4, r2_60_4
+    rates = {
+        'ABL_20_ILD_2': (x[3], x[4]),   # (r_right, r_left)
+        'ABL_20_ILD_4': (x[5], x[6]),
+        'ABL_60_ILD_2': (x[7], x[8]),
+        'ABL_60_ILD_4': (x[9], x[10])
+    }
+    
+    # Num of neurons is integer
+    N = int(np.round(N))
+    
+    # Compute c from k and N
+    c = k / N
+    
+    # theta should be int in poisson spike
+    theta = int(np.ceil(theta))
+    if theta < 1:
+        theta = 1
+    
+    total_ks_stat = 0.0
+    
+    try:
+        # Loop through each stimulus
+        for stim_key, (r_right, r_left) in rates.items():
+            # Get DDM data for this stimulus
+            ddm_rts = ddm_rts_decided_dict[stim_key]
+            
+            # Set up Poisson parameters for this stimulus
+            poisson_params = {
+                'N_right': N,
+                'N_left': N,
+                'c': c,
+                'r_right': r_right,
+                'r_left': r_left,
+                'theta': theta,
+                'T': 20,
+                'exponential_noise_scale': 0
+            }
+            
+            # Simulate Poisson model (no verbose output)
+            poisson_results = simulate_poisson_rts(poisson_params, n_trials=n_trials, 
+                                                   seed=seed, verbose=False, n_jobs=-1)
+            
+            # Filter for decided trials
+            poisson_decided_mask = ~np.isnan(poisson_results[:, 0])
+            poisson_rts_decided = poisson_results[poisson_decided_mask, 0]
+            
+            # Compute KS statistic for this stimulus
+            ks_stat, _ = ks_2samp(ddm_rts, poisson_rts_decided)
+            
+            # Add to total
+            total_ks_stat += ks_stat
+        
+        return total_ks_stat
+        
+    except Exception as e:
+        raise ValueError(f"Error in multi-stimulus objective function: {e}")
+
+
 def save_bads_results_txt(filename, ddm_params, ddm_stimulus, ddm_simulation_params, 
                            ddm_data, ddm_rts_decided, bads_setup, optimize_result, 
                            optimized_params, validation_results, poisson_rts_val, 

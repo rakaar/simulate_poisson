@@ -32,6 +32,10 @@ ddm_params = {
 ddm_right_rate, ddm_left_rate = lr_rates_from_ABL_ILD(ABL, ILD,
      ddm_params['Nr0'], ddm_params['lam'], ddm_params['ell'])
 
+print(f'ddm_rate_right = {ddm_right_rate:.4f}')
+print(f'ddm_rate_left = {ddm_left_rate:.4f}')
+
+# %%
 mu_ddm = ddm_right_rate - ddm_left_rate
 sigma_sq_ddm = ddm_right_rate + ddm_left_rate
 sigma_ddm = np.sqrt(sigma_sq_ddm)

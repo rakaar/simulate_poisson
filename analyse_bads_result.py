@@ -199,8 +199,13 @@ plt.show()
 # Parameter comparison table
 print("\n=== PARAMETER COMPARISON TABLE ===")
 
-# Calculate DDM's effective r (Nr0/N_poisson)
-r_ddm_effective = ddm_params['Nr0'] / N_opt
+# Verify DDM rates are equal (they should be for ILD=0)
+print(f"DDM right rate: {ddm_right_rate:.6f}")
+print(f"DDM left rate: {ddm_left_rate:.6f}")
+print(f"Rates equal: {np.isclose(ddm_right_rate, ddm_left_rate)}")
+
+# Calculate DDM's effective r (using actual DDM rate / N_poisson)
+r_ddm_effective = ddm_right_rate / N_opt
 
 # Calculate percentage differences and ratios
 pct_diff_r = 100 * (r_opt - r_ddm_effective) / r_ddm_effective
@@ -220,7 +225,7 @@ print("{:<10} {:<15} {:<20} {:<12} {:<12}".format(
 
 # r row (with note about DDM calculation)
 print("{:<10} {:<15} {:<20} {:<12} {:<12}".format(
-    "r", f"{r_opt:.4f}", f"{r_ddm_effective:.4f} (Nr0/N)", f"{ratio_r:.4f}", f"{pct_diff_r:.2f}%"
+    "r", f"{r_opt:.4f}", f"{r_ddm_effective:.6f} (rate/N)", f"{ratio_r:.4f}", f"{pct_diff_r:.2f}%"
 ))
 
 # theta row
@@ -234,8 +239,8 @@ print("-" * 35)
 print("{:<10} {:<20}".format("k", f"{k_opt:.2f}"))
 print("{:<10} {:<20}".format("c", f"{c_opt:.6f}"))
 
-print("\n\nNote: DDM's effective r = Nr0/N_poisson = {:.4f}/{} = {:.4f}".format(
-    ddm_params['Nr0'], N_opt, r_ddm_effective
+print("\n\nNote: DDM's effective r = ddm_rate/N_poisson = {:.6f}/{} = {:.6f}".format(
+    ddm_right_rate, N_opt, r_ddm_effective
 ))
 
 # RT Statistics
