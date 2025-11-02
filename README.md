@@ -150,7 +150,8 @@ Scripts for optimizing Poisson model parameters to match DDM behavior using Baye
 ### Analysis and Results
 - `BADS_RESULTS_README.md` - Detailed documentation of BADS optimization results, parameter interpretations, and model comparisons
 - `ANALYTICAL_FORMULA_NOTES.md` - Mathematical notes and analytical formulas for Poisson DDM models
-- `analyse_bads_result.py` - Comprehensive analysis of BADS optimization results: compares DDM vs optimized Poisson RTDs, plots histograms/CDFs, calculates KS-statistics, generates parameter comparison tables
+- `analyse_bads_result.py` - Comprehensive analysis of BADS optimization results: compares DDM vs optimized Poisson RTDs, plots histograms/CDFs, calculates KS-statistics, generates parameter comparison tables (single stimulus)
+- `analyse_bads_multistim_result.py` - Multi-stimulus BADS result analysis: loads multi-stimulus optimization results, simulates DDM and Poisson for all 4 conditions, generates 2x2 comparison grids (RTDs and CDFs), calculates per-stimulus and total KS-statistics
 - `analyse_bads_rtd.py` - Reaction time distribution analysis for BADS-optimized parameters
 - `analyse_bads_psycho.py` - Psychometric curve analysis comparing DDM (analytical) vs Poisson (simulated) across multiple ABL/ILD conditions; uses simulation-based approach to properly account for spike correlations; saves results to timestamped pickle files
 - `bads_psycho_analytic_poisson.py` - Analytical psychometric curve computation for Poisson models using BADS parameters
@@ -165,6 +166,7 @@ Scripts for optimizing Poisson model parameters to match DDM behavior using Baye
 
 ### Debugging and Utilities
 - `debug_rates.py` - Debug and validation script for rate calculations and parameter transformations
+- `check_ddm_rates.py` - Quick utility to verify DDM firing rates for multi-stimulus conditions (ABL/ILD combinations)
 
 ## Usage
 
