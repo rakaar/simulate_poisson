@@ -141,14 +141,26 @@ print(f"Total Poisson trials per evaluation: {n_trials_per_eval * len(stimuli)}\
 #   poisson_right_rate = ddm_right_rate * rate_scaling_factor
 #   poisson_left_rate = ddm_left_rate * rate_scaling_factor
 
+# ==== Bound set 1, where minimum N = 10 ====
 # Hard bounds (actual optimization constraints)
 # [N, k, theta, rate_scaling_factor]
-lower_bounds = np.array([10, 1, 2, 1])
-upper_bounds = np.array([1000, 10, 20, 10])
+# lower_bounds = np.array([10, 1, 2, 1])
+# upper_bounds = np.array([1000, 10, 20, 10])
 
-# Plausible bounds (where we expect the solution to be)
+# # Plausible bounds (where we expect the solution to be)
+# plausible_lower_bounds = np.array([50, 2, 3, 2])
+# plausible_upper_bounds = np.array([500, 9, 15, 5])
+
+# ====== Bound set 2, where minimu N = 5 =====
+# # Hard bounds (actual optimization constraints)
+# [N, k, theta, rate_scaling_factor]
+lower_bounds = np.array([5, 1, 2, 1])
+upper_bounds = np.array([1000, 5, 20, 10])
+
+# # Plausible bounds (where we expect the solution to be)
 plausible_lower_bounds = np.array([50, 2, 3, 2])
-plausible_upper_bounds = np.array([500, 9, 15, 5])
+plausible_upper_bounds = np.array([500, 4, 15, 5])
+ 
 
 # Initial guess (midpoint of plausible range)
 x0 = (plausible_lower_bounds + plausible_upper_bounds) / 2
