@@ -8,3 +8,4 @@ venv/
 *.npy
 *.npz
 corr_N_RTDs/
+*.swp

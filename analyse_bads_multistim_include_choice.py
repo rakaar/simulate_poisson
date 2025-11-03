@@ -233,12 +233,12 @@ for stim in stimuli:
 print()
 
 # %%
-# Plot RTD comparison for all stimuli in a 2x2 grid
+# Plot RTD comparison for all stimuli in a 2x4 grid
 print("="*70)
-print("PLOTTING RTD COMPARISONS (2x2 GRID)")
+print("PLOTTING RTD COMPARISONS (2x4 GRID)")
 print("="*70)
 
-fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig, axes = plt.subplots(2, 4, figsize=(20, 10))
 axes = axes.flatten()
 
 bins = np.arange(0, 2.01, 0.01)
@@ -278,12 +278,12 @@ print("✓ Saved: rtd_comparison_multistim_choice.png")
 plt.show()
 
 # %%
-# Plot CDFs for all stimuli in a 2x2 grid
+# Plot CDFs for all stimuli in a 2x4 grid
 print("\n" + "="*70)
-print("PLOTTING CDF COMPARISONS (2x2 GRID)")
+print("PLOTTING CDF COMPARISONS (2x4 GRID)")
 print("="*70)
 
-fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig, axes = plt.subplots(2, 4, figsize=(20, 10))
 axes = axes.flatten()
 
 for idx, stim in enumerate(stimuli):
@@ -446,7 +446,7 @@ print("GENERATING PSYCHOMETRIC CURVES")
 print("="*70)
 
 # Define ABL and ILD ranges
-ABL_values = [20, 40, 60]
+ABL_values = [20, 40, 60]  # Test generalization to ABL=40 (not in training)
 ILD_values = np.arange(-16, 18, 2)  # -16 to 16 in steps of 2
 n_trials_psychometric = int(50e3)  # 50K trials per condition for psychometric
 
@@ -573,7 +573,7 @@ print("GENERATING MEAN RT CURVES")
 print("="*70)
 
 # Define ABL and ILD ranges for RT analysis
-ABL_values_rt = [20, 40, 60]
+ABL_values_rt = [20, 40, 60]  # Test generalization to ABL=40 (not in training)
 ILD_values_rt = np.array([1, 2, 4, 8, 16])
 n_trials_rt = int(50e3)  # 50K trials per condition
 
@@ -674,7 +674,7 @@ print("="*70)
 fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
 # Define colors for different ABL values
-colors = ['tab:blue', 'tab:orange', 'tab:green']
+colors = ['tab:blue', 'tab:orange', 'tab:green']  # One color per ABL value
 
 for idx, ABL in enumerate(ABL_values_rt):
     data = mean_rt_data[ABL]
@@ -795,7 +795,7 @@ for row_idx, ABL in enumerate(ABL_values_rt):
         else:
             ax.set_yticklabels([])
         
-        if row_idx == 2:
+        if row_idx == 2:  # Last row (0-indexed, so row 2 is the 3rd row)
             ax.set_xlabel('RT (s)', fontsize=9)
         else:
             ax.set_xticklabels([])
