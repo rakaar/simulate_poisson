@@ -29,14 +29,14 @@ ddm_params = {
 stimuli = [
     {'ABL': 20, 'ILD': 2},
     {'ABL': 20, 'ILD': 4},
-    {'ABL': 20, 'ILD': 8},
-    {'ABL': 20, 'ILD': 16},
+    # {'ABL': 20, 'ILD': 8},
+    # {'ABL': 20, 'ILD': 16},
 
 
     {'ABL': 60, 'ILD': 2},
     {'ABL': 60, 'ILD': 4},
-    {'ABL': 60, 'ILD': 8},
-    {'ABL': 60, 'ILD': 16},
+    # {'ABL': 60, 'ILD': 8},
+    # {'ABL': 60, 'ILD': 16},
 ]
 
 # DDM simulation settings
@@ -155,12 +155,12 @@ print(f"Total Poisson trials per evaluation: {n_trials_per_eval * len(stimuli)}\
 # # Hard bounds (actual optimization constraints)
 # [N, k, theta, rate_scaling_factor]
 lower_bounds = np.array([5, 1, 2, 1])
-upper_bounds = np.array([1000, 5, 20, 10])
+upper_bounds = np.array([1000, 2.5, 100, 10])
 
 # # Plausible bounds (where we expect the solution to be)
-plausible_lower_bounds = np.array([50, 2, 3, 2])
-plausible_upper_bounds = np.array([500, 4, 15, 5])
- 
+plausible_lower_bounds = np.array([50, 1.5, 3, 2])
+plausible_upper_bounds = np.array([500, 2.3, 50, 5])
+
 
 # Initial guess (midpoint of plausible range)
 x0 = (plausible_lower_bounds + plausible_upper_bounds) / 2
