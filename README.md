@@ -160,6 +160,8 @@ Scripts for optimizing Poisson model parameters to match DDM behavior using Baye
 
 ### Comparison Studies
 - `separate_poisson_ddm_comparison.py` - Side-by-side comparison of Poisson and DDM models with separate parameter sets and visualization
+- `analyse_bads_multistim_include_choice.py` - Comprehensive multi-stimulus analysis with choice probabilities: simulates DDM and Poisson correlated models across 4 stimulus conditions (ABL=20/60, ILD=2/4), generates RTD comparisons, psychometric curves, mean RT curves, and choice-conditioned RTD grids; extends analysis to ABL=40 for generalization testing
+- `compare_poisson_corr_vs_uncorr.py` - **Systematic comparison of Poisson Correlated (BADS-optimized) vs Poisson Uncorrelated (Skellam) models across multiple stimulus conditions (ABL=20/40/60, ILD=1/2/4/8/16).** Simulates both models using the same N and DDM rates, with correlated model using scaled firing rates and theta, while uncorrelated model uses per-neuron rates (DDM/N) and DDM theta. Generates: (1) 3×5 RTD comparison grid, (2) combined chronometric curves, (3) combined mean RT curves, (4) psychometric curves with extended ILD range (-16 to 16). **Key conclusion: For a corr=1 Poisson spiking model, there exists an equivalent corr=0 Poisson model where the bound is down-scaled (with number of neurons and firing rate remaining the same).**
 
 ### Visualization and Plotting
 - `plot_phi_vs_c.py` - Plots correlation coefficient (phi) versus correlation parameter (c) to visualize relationship between theoretical and measured correlation
