@@ -8,13 +8,14 @@ from tqdm import tqdm
 import multiprocessing
 import time
 from joblib import Parallel, delayed
+from scipy import stats
 
 # ===================================================================
 # 1. PARAMETERS
 # ===================================================================
 
 N_sim = 100  # Number of trials for jump distribution analysis
-N_sim_rtd = int(2   *50e3)  # Number of trials for RTD (reaction time distribution)
+N_sim_rtd = int(1   *50e3)  # Number of trials for RTD (reaction time distribution)
 
 # instead of N, c is hardcoded. 
 # N_right_and_left = 50
@@ -24,23 +25,24 @@ N_sim_rtd = int(2   *50e3)  # Number of trials for RTD (reaction time distributi
 ########################################
 # 
 # N_right_and_left = round(((corr_factor - 1)/c) + 1)
-N_right_and_left = 100 + 1
-c = 0.01
+N_right_and_left = int(5e2)
+c = 0.001
 
-corr_factor = 1 + (N_right_and_left - 1)*c
+# corr_factor = 1 + (N_right_and_left - 1)*c
+corr_factor = 1
 # c = 1/N_right_and_left
 N_right = N_right_and_left
 N_left = N_right_and_left   
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 
-theta = 10
+theta = 5
 theta_scaled = theta * corr_factor
 
 # random animal's params
 lam = 1.3
 l = 0.9
-Nr0 = 13.3 * 9
+Nr0 = 13.3 * 6
 # Nr0 = 100
 exponential_noise_to_spk_time = 0 # Scale parameter in seconds
 # exponential_noise_to_spk_time = 1e-3 # Scale parameter in seconds
@@ -228,7 +230,7 @@ mu = N_neurons * (r_right - r_left)
 corr_factor_ddm = 1
 sigma_sq = N_neurons * (r_right + r_left) * corr_factor_ddm
 sigma = sigma_sq**0.5
-theta_ddm = theta
+theta_ddm = 2
 # theta_ddm = 2.5
 # print('## WARNING ##')
 # print('## theta_ddm is hardcoded to 2.5 ##')
@@ -380,7 +382,7 @@ ax1.set_ylabel("Density", fontsize=12)
 ax1.set_title(
     f'Reaction Time Distributions: Poisson vs DDM (with Exponential spike timing jitter)\n'
     f'Poisson: θ={theta_scaled}, r_R={r_right_scaled:.4f}, r_L={r_left_scaled:.4f} (scaled) | '
-    f'DDM: θ={theta}, r_R={r_right:.4f}, r_L={r_left:.4f} (unscaled)\n'
+    f'DDM: θ={theta_ddm}, r_R={r_right:.4f}, r_L={r_left:.4f} (unscaled) \n'
     f'N = {N_right_and_left}, corr = {c:.4f}, corr_factor = {corr_factor:.3f}, '
     f'mu = {mu:.2f}, sigma = {sigma:.2f}, λ_spike = {exponential_noise_to_spk_time:.4f}s',
     fontsize=13, fontweight='bold'
@@ -394,7 +396,21 @@ ax1.set_xlim(0, 2)
 ax2 = axes[1]
 
 ax2.bar(bin_diff_values, bin_diff_frequencies, width=0.8, alpha=0.7, 
-        edgecolor='black', color='steelblue')
+        edgecolor='black', color='steelblue', label='Empirical Distribution')
+
+# Overlay Gaussian distribution using mu and sigma from DDM parameters
+# Scale the Gaussian to match the histogram counts
+x_gaussian = np.linspace(-6, 6, 1000)
+gaussian_pdf = stats.norm.pdf(x_gaussian, loc=mu * dt_bin, scale=sigma * np.sqrt(dt_bin))
+
+# Scale to match total count
+total_count = len(all_bin_differences)
+gaussian_scaled = gaussian_pdf * total_count
+# ax2.plot(x_gaussian, gaussian_scaled, 'r-', linewidth=3, alpha=0.8, 
+#          label=f'Gaussian (μ={mu*dt_bin:.3f}, σ={sigma*np.sqrt(dt_bin):.3f})')
+         
+
+
 ax2.set_xlabel('Spike Difference (R - L) per Time Bin', fontsize=12)
 ax2.set_ylabel('Count', fontsize=12)
 ax2.set_title(
@@ -402,6 +418,7 @@ ax2.set_title(
     f'{N_sim} trials, {len(all_bin_differences)} total bins',
     fontsize=13, fontweight='bold'
 )
+ax2.legend(loc='upper right')
 ax2.grid(axis='y', alpha=0.3)
 ax2.set_xticks(bin_diff_values[::max(1, len(bin_diff_values)//20)])  # Show subset of ticks
 ax2.set_yscale('log')

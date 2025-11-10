@@ -154,12 +154,12 @@ print(f"Total Poisson trials per evaluation: {n_trials_per_eval * len(stimuli)}\
 # ====== Bound set 2, where minimu N = 5 =====
 # # Hard bounds (actual optimization constraints)
 # [N, k, theta, rate_scaling_factor]
-lower_bounds = np.array([5, 1, 2, 1])
-upper_bounds = np.array([1000, 2.5, 100, 10])
+lower_bounds = np.array([100, 1e-5, 2, 1])
+upper_bounds = np.array([1000, 1, 100, 20])
 
-# # Plausible bounds (where we expect the solution to be)
-plausible_lower_bounds = np.array([50, 1.5, 3, 2])
-plausible_upper_bounds = np.array([500, 2.3, 50, 5])
+# # Plausible bounds 
+plausible_lower_bounds = np.array([200, 0.1, 3, 2])
+plausible_upper_bounds = np.array([900, 0.9, 50, 10])
 
 
 # Initial guess (midpoint of plausible range)
