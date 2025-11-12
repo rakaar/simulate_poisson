@@ -14,8 +14,8 @@ from scipy import stats
 # 1. PARAMETERS
 # ===================================================================
 
-N_sim = 10  # Number of trials for jump distribution analysis
-N_sim_rtd = int(20e3)  # Number of trials for RTD (reaction time distribution)
+N_sim = 100  # Number of trials for jump distribution analysis
+N_sim_rtd = int(1   *50e3)  # Number of trials for RTD (reaction time distribution)
 
 # instead of N, c is hardcoded. 
 # N_right_and_left = 50
@@ -25,8 +25,8 @@ N_sim_rtd = int(20e3)  # Number of trials for RTD (reaction time distribution)
 ########################################
 # 
 # N_right_and_left = round(((corr_factor - 1)/c) + 1)
-N_right_and_left = int(1000)
-c = 1e-5
+N_right_and_left = int(2)
+c = 0.001
 
 # corr_factor = 1 + (N_right_and_left - 1)*c
 corr_factor = 1
@@ -36,7 +36,7 @@ N_left = N_right_and_left
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 
-theta = 2
+theta = 5
 theta_scaled = theta * corr_factor
 
 # random animal's params
@@ -54,8 +54,8 @@ exponential_noise_to_spk_time = 0 # Scale parameter in seconds
 r0 = Nr0/N_right_and_left
 r0_scaled = r0 * corr_factor
 
-abl = 60
-ild = 4
+abl = 20
+ild = 0
 r_db = (2*abl + ild)/2
 l_db = (2*abl - ild)/2
 pr = (10 ** (r_db/20))
@@ -75,7 +75,7 @@ r_right = r0 * rr
 r_left = r0 * rl
 
 
-T = 50  # Max duration of a single trial (seconds)
+T = 20  # Max duration of a single trial (seconds)
 
 # Gaussian noise parameter for spike timing jitter
 
@@ -273,14 +273,32 @@ ddm_data = np.array(ddm_results)
 end_time_ddm = time.time()
 print(f"DDM simulation took: {end_time_ddm - start_time_ddm:.2f} seconds")
 print(f"## DDM: mean RT is {np.mean(ddm_data[:, 0]):.4f}" )
+# %%
 # ===================================================================
 # 5. EVIDENCE JUMP DISTRIBUTION ANALYSIS
 # ===================================================================
 
-def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T):
+def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T, sliding_window=False, window_size=10e-3, step_size=5e-3):
     """
     Runs a single trial, bins spike times into bins of size dt_bin,
     and returns the spike difference (R - L) for each time bin.
+    
+    Parameters:
+    -----------
+    trial_idx : int
+        Trial index for random seed
+    seed : int
+        Master seed
+    dt_bin : float
+        Size of time bins
+    T : float
+        Total simulation time
+    sliding_window : bool, optional
+        Whether to use sliding window approach (default: False)
+    window_size : float, optional
+        Size of sliding window in seconds (default: 10ms)
+    step_size : float, optional
+        Step size for sliding window in seconds (default: 5ms)
     """
     rng_local = np.random.default_rng(seed + trial_idx)
     
@@ -303,6 +321,34 @@ def get_trial_binned_spike_differences(trial_idx, seed, dt_bin, T):
     # Compute difference (R - L) for each bin
     spike_differences = right_counts - left_counts
     
+    # If sliding window is requested, compute spike differences using sliding window approach
+    if sliding_window:
+        # Create sliding window bins
+        n_sliding_bins = int(np.ceil((T - window_size) / step_size)) + 1
+        sliding_window_centers = np.arange(0, T - window_size + step_size, step_size) + window_size/2
+        sliding_window_starts = sliding_window_centers - window_size/2
+        sliding_window_ends = sliding_window_centers + window_size/2
+        
+        # Calculate average firing rates in each sliding window
+        right_sliding_counts = np.zeros(n_sliding_bins)
+        left_sliding_counts = np.zeros(n_sliding_bins)
+        
+        for i in range(n_sliding_bins):
+            # Count spikes in this window
+            right_window_spikes = np.sum((all_right_spikes >= sliding_window_starts[i]) & 
+                                        (all_right_spikes < sliding_window_ends[i]))
+            left_window_spikes = np.sum((all_left_spikes >= sliding_window_starts[i]) & 
+                                       (all_left_spikes < sliding_window_ends[i]))
+            
+            # Calculate average firing rate (spikes per neuron)
+            right_sliding_counts[i] = right_window_spikes / N_right
+            left_sliding_counts[i] = left_window_spikes / N_left
+        
+        # Compute difference in average firing rates (R - L) for each sliding window
+        sliding_spike_differences = right_sliding_counts - left_sliding_counts
+        
+        return spike_differences, sliding_spike_differences
+    
     return spike_differences
 
 # %%
@@ -313,30 +359,55 @@ print(f'\n=== EVIDENCE JUMP DISTRIBUTION ANALYSIS ===')
 print(f'Collecting binned spike differences from {N_sim} trials...')
 print(f'Time bin size: dt = {dt_bin*1000:.2f} ms')
 
+# Parameters for sliding window analysis
+window_size = 10e-3  # 10ms window
+step_size = 5e-3     # 5ms step size
+
 all_bin_differences = []
+all_sliding_window_differences = []
 
 for trial_idx in range(N_sim):
-    bin_diffs = get_trial_binned_spike_differences(trial_idx, master_seed, dt_bin, T)
+    # Get both regular binned differences and sliding window differences
+    results = get_trial_binned_spike_differences(trial_idx, master_seed, dt_bin, T, 
+                                               sliding_window=True, 
+                                               window_size=window_size, 
+                                               step_size=step_size)
+    bin_diffs, sliding_diffs = results
+    
     all_bin_differences.extend(bin_diffs)
+    all_sliding_window_differences.extend(sliding_diffs)
 
 all_bin_differences = np.array(all_bin_differences)
-print(f'Total number of time bins analyzed: {len(all_bin_differences)}')
+all_sliding_window_differences = np.array(all_sliding_window_differences)
 
-# Analyze the distribution
+print(f'Total number of time bins analyzed: {len(all_bin_differences)}')
+print(f'Total number of sliding windows analyzed: {len(all_sliding_window_differences)}')
+# %%
+# Analyze the distribution of regular binned differences
 min_diff = int(all_bin_differences.min())
 max_diff = int(all_bin_differences.max())
 hist_bins = np.arange(min_diff - 0.5, max_diff + 1.5, 1)  # Bin edges around integers
 bin_diff_frequencies, bin_edges = np.histogram(all_bin_differences, bins=hist_bins)
 bin_diff_values = np.arange(min_diff, max_diff + 1)  # Integer values
 
-print(f'\nBinned spike difference distribution computed.')
+# Analyze the distribution of sliding window differences
+min_sliding_diff = np.floor(all_sliding_window_differences.min())
+max_sliding_diff = np.ceil(all_sliding_window_differences.max())
+print(f'min_sliding_diff = {min_sliding_diff}')
+print(f'max_sliding_diff = {max_sliding_diff}')
+# Create bins with appropriate size for continuous data
+sliding_hist_bins = np.arange(min_sliding_diff, max_sliding_diff, 0.001)  
+sliding_diff_frequencies, sliding_bin_edges = np.histogram(all_sliding_window_differences, bins=sliding_hist_bins)
+sliding_diff_values = (sliding_bin_edges[1:] + sliding_bin_edges[:-1]) / 2  # Bin centers
+
+print(f'\nBinned spike difference distributions computed.')
 
 # %%
 # ===================================================================
 # 6. COMBINED 2x1 PLOT
 # ===================================================================
 
-fig, axes = plt.subplots(2, 1, figsize=(15, 12))
+fig, axes = plt.subplots(3, 1, figsize=(15, 16))
 
 # --- TOP PLOT: Poisson and DDM RT Distributions ---
 ax1 = axes[0]
@@ -390,7 +461,7 @@ ax1.set_title(
 # ax1.set_ylim(-1.7, 1.7)
 ax1.legend(loc='upper right')
 ax1.grid(axis='y', alpha=0.3)
-ax1.set_xlim(0, 0.5)
+ax1.set_xlim(0, 2)
 
 # --- BOTTOM PLOT: Evidence Jump Distribution (Time-binned) ---
 ax2 = axes[1]
@@ -422,10 +493,41 @@ ax2.legend(loc='upper right')
 ax2.grid(axis='y', alpha=0.3)
 ax2.set_xticks(bin_diff_values[::max(1, len(bin_diff_values)//20)])  # Show subset of ticks
 ax2.set_yscale('log')
+
+# --- THIRD PLOT: Sliding Window Evidence Jump Distribution ---
+ax3 = axes[2]
+
+ax3.bar(sliding_diff_values, sliding_diff_frequencies, width=(sliding_bin_edges[1]-sliding_bin_edges[0]), alpha=0.7,
+        edgecolor='black', color='darkgreen', label='Sliding Window Distribution')
+
+# Overlay Gaussian distribution for sliding window
+x_gaussian_sliding = np.linspace(min_sliding_diff, max_sliding_diff, 1000)
+gaussian_pdf_sliding = stats.norm.pdf(x_gaussian_sliding, 
+                                      loc=mu * window_size / N_right, 
+                                      scale=sigma * np.sqrt(window_size) / N_right)
+
+# Scale to match total count
+total_count_sliding = len(all_sliding_window_differences)
+gaussian_scaled_sliding = gaussian_pdf_sliding * total_count_sliding * (sliding_bin_edges[1] - sliding_bin_edges[0])
+# ax3.plot(x_gaussian_sliding, gaussian_scaled_sliding, 'r-', linewidth=3, alpha=0.8,
+#          label=f'Gaussian Fit')
+
+
+ax3.set_xlabel('Average Firing Rate Difference (R - L) per Neuron', fontsize=12)
+ax3.set_ylabel('Count', fontsize=12)
+ax3.set_title(
+    f'Sliding Window Evidence Distribution (window={window_size*1000:.1f}ms, step={step_size*1000:.1f}ms)\n'
+    f'{N_sim} trials, {len(all_sliding_window_differences)} total windows',
+    fontsize=13, fontweight='bold'
+)
+ax3.legend(loc='upper right')
+ax3.grid(axis='y', alpha=0.3)
+ax3.set_yscale('log')
+
 plt.tight_layout()
-plt.savefig('combined_poisson_ddm_jump_analysis.png', dpi=150, bbox_inches='tight')
+plt.savefig('combined_poisson_ddm_jump_analysis_with_sliding.png', dpi=150, bbox_inches='tight')
 print(f'\n=== PLOT SAVED ===')
-print(f'Figure saved to: combined_poisson_ddm_jump_analysis.png')
+print(f'Figure saved to: combined_poisson_ddm_jump_analysis_with_sliding.png')
 plt.show()
 
 # ===================================================================
@@ -447,5 +549,14 @@ print(f'Max jump: {np.max(all_bin_differences):.0f}')
 print(f'Proportion of positive jumps: {np.sum(all_bin_differences > 0) / len(all_bin_differences):.4f}')
 print(f'Proportion of negative jumps: {np.sum(all_bin_differences < 0) / len(all_bin_differences):.4f}')
 print(f'Proportion of zero jumps: {np.sum(all_bin_differences == 0) / len(all_bin_differences):.4f}')
+
+print(f'\n--- Sliding Window Evidence Distribution ---')
+print(f'Mean sliding window value: {np.mean(all_sliding_window_differences):.4f}')
+print(f'Std dev of sliding windows: {np.std(all_sliding_window_differences):.4f}')
+print(f'Min sliding window value: {np.min(all_sliding_window_differences):.4f}')
+print(f'Max sliding window value: {np.max(all_sliding_window_differences):.4f}')
+print(f'Proportion of positive sliding windows: {np.sum(all_sliding_window_differences > 0) / len(all_sliding_window_differences):.4f}')
+print(f'Proportion of negative sliding windows: {np.sum(all_sliding_window_differences < 0) / len(all_sliding_window_differences):.4f}')
+print(f'Proportion of zero sliding windows: {np.sum(all_sliding_window_differences == 0) / len(all_sliding_window_differences):.4f}')
 
 # %%
