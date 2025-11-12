@@ -173,3 +173,15 @@ Scripts for optimizing Poisson model parameters to match DDM behavior using Baye
 ## Usage
 
 Use .venv library
+
+# MGFs:
+## MGF works
+- ddm_mgf_check.py : in DDM
+- poisson_mgf_check.py : in Poisson
+
+## Utils
+- corr_poisson_utils_subtractive.py: Poisson substractive generate utils
+- mgf_helper_utils.py: MGF utils for accuracy, mean RT
+
+## Experiment with N, rho varying and mismatch btn DDM and poisson
+- poisson_ddm_mgf_n_rho_vary.py: Poisson MGF utils
