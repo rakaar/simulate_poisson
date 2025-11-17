@@ -12,12 +12,13 @@ from corr_poisson_utils_subtractive import run_poisson_trial
 from mgf_helper_utils import poisson_fc_dt, ddm_fc_dt
 # %%
 # TIED
+total_rate_multiplication_factor = 0.5
 lam = 1.3
 l = 0.9
-Nr0 = 13.3
+Nr0 = 13.3 * total_rate_multiplication_factor
 
-abl = 60
-ild = 4
+abl = 20
+ild = 1
 dt = 1e-6  # Time step for continuous DDM simulation
 dB = 1e-3
 
@@ -26,8 +27,8 @@ dB = 1e-3
 # %%
 N_sim = int(10e3)
 
-rho = 1e-5
-N_range = [1000]
+rho = 1e-2
+N_range = [100]
 theta_range = [2,4,6]
 
 ddm_acc_theory = {}
@@ -84,7 +85,7 @@ for N in N_range:
         plt.plot(valid_theta_poisson, [poisson_acc_theory[(N,theta)] for theta in valid_theta_poisson], label=f'N={N} (Poisson)')
 plt.xlabel('Theta')
 plt.ylabel('Accuracy')
-plt.title(f'Accuracy vs Theta (rho={rho}, abl={abl}, ild={ild})')
+plt.title(f'Accuracy vs Theta (rho={rho}, abl={abl}, ild={ild}), Total rate = {total_rate_multiplication_factor}x')
 plt.legend()
 plt.show()
 
@@ -103,7 +104,7 @@ for N in N_range:
         plt.plot(valid_theta_poisson, [poisson_rt_theory[(N,theta)] for theta in valid_theta_poisson], label=f'N={N} (Poisson)')
 plt.xlabel('Theta')
 plt.ylabel('Mean RT')
-plt.title(f'Mean RT vs Theta (rho={rho}, abl={abl}, ild={ild})')
+plt.title(f'Mean RT vs Theta (rho={rho}, abl={abl}, ild={ild}), Total rate = {total_rate_multiplication_factor}x')
 plt.legend()
 plt.show()
 
