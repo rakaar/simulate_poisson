@@ -66,7 +66,7 @@ def find_h0():
     try:
         # Use scipy's root finding method
         h0 = optimize.brentq(f, a, b)
-        print(f"Found root h0 = {h0}")
+        # print(f"Found root h0 = {h0}")
         return h0
     except ValueError as e:
         print(f"Error finding root: {e}")
