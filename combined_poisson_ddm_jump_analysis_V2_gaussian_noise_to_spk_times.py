@@ -25,8 +25,8 @@ N_sim_rtd = int(20e3)  # Number of trials for RTD (reaction time distribution)
 ########################################
 # 
 # N_right_and_left = round(((corr_factor - 1)/c) + 1)
-N_right_and_left = int(1000)
-c = 1e-5
+N_right_and_left = int(10)
+c = 1e-3
 
 # corr_factor = 1 + (N_right_and_left - 1)*c
 corr_factor = 1
@@ -36,7 +36,7 @@ N_left = N_right_and_left
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 
-theta = 2
+theta = 4
 theta_scaled = theta * corr_factor
 
 # random animal's params
@@ -54,8 +54,8 @@ exponential_noise_to_spk_time = 0 # Scale parameter in seconds
 r0 = Nr0/N_right_and_left
 r0_scaled = r0 * corr_factor
 
-abl = 60
-ild = 4
+abl = 20
+ild = 1
 r_db = (2*abl + ild)/2
 l_db = (2*abl - ild)/2
 pr = (10 ** (r_db/20))
@@ -230,7 +230,7 @@ mu = N_neurons * (r_right - r_left)
 corr_factor_ddm = 1
 sigma_sq = N_neurons * (r_right + r_left) * corr_factor_ddm
 sigma = sigma_sq**0.5
-theta_ddm = 2
+theta_ddm = 4
 # theta_ddm = 2.5
 # print('## WARNING ##')
 # print('## theta_ddm is hardcoded to 2.5 ##')
@@ -390,7 +390,7 @@ ax1.set_title(
 # ax1.set_ylim(-1.7, 1.7)
 ax1.legend(loc='upper right')
 ax1.grid(axis='y', alpha=0.3)
-ax1.set_xlim(0, 0.5)
+ax1.set_xlim(0, 2)
 
 # --- BOTTOM PLOT: Evidence Jump Distribution (Time-binned) ---
 ax2 = axes[1]
