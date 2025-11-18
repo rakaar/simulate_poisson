@@ -26,11 +26,11 @@ dB = 1e-3
 # %%
 N_sim = int(10e3)
 
-rho = 1e-2
+rho = 2/100
 N = 100  # Fixed number of neurons
-theta_range = [2,4,6]
-rate_multiplication_factor_range = [0.63, 1, 1.3]  # Array of rate multiplication factors
-theta_increment_arr = [0, 1,4]
+theta_range = [2, 4]
+rate_multiplication_factor_range = [1, 1.3]  # Array of rate multiplication factors
+theta_increment_arr = [0, 1]
 
 ddm_acc_theory = {}
 ddm_rt_theory = {}
@@ -119,10 +119,10 @@ for t_idx, theta_p_inc in enumerate(theta_increment_arr):
 ABL_range = [20, 40, 60]
 ILD_range = [1,2,4,8,16]
 
-best_rate_factor = 1.7
-best_theta_inc = 2
+best_rate_factor = 2.95
+best_theta_inc = 3
 
-original_theta = 3
+original_theta = 2  
 
 theta_og_ddm_rt_data = {}
 theta_og_ddm_acc_data = {}

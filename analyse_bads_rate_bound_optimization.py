@@ -21,18 +21,58 @@ from corr_poisson_utils_subtractive import run_poisson_trial
 
 # %%
 # Find and load the most recent optimization results
-pkl_pattern = 'bads_rate_bound_optimization_results_*.pkl'
-pkl_files = glob.glob(pkl_pattern)
+# Try to find combined file first, then fall back to intermediate files
+pkl_pattern_combined = 'bads_rate_bound_optimization_results_*_all.pkl'
+pkl_pattern_old = 'bads_rate_bound_optimization_results_*.pkl'
 
-if not pkl_files:
-    raise FileNotFoundError(f"No files matching '{pkl_pattern}' found in current directory")
+pkl_files_combined = glob.glob(pkl_pattern_combined)
+pkl_files_old = [f for f in glob.glob(pkl_pattern_old) if not f.endswith('_all.pkl') and 'theta' not in f]
 
-# Get the most recent file
-latest_pkl = max(pkl_files, key=lambda x: Path(x).stat().st_mtime)
-print(f"Loading results from: {latest_pkl}")
+# Prefer combined file if available
+if pkl_files_combined:
+    latest_pkl = max(pkl_files_combined, key=lambda x: Path(x).stat().st_mtime)
+    print(f"Loading combined results from: {latest_pkl}")
+elif pkl_files_old:
+    latest_pkl = max(pkl_files_old, key=lambda x: Path(x).stat().st_mtime)
+    print(f"Loading results from: {latest_pkl}")
+else:
+    # Try to load from intermediate files
+    pkl_pattern_intermediate = 'bads_rate_bound_optimization_results_*_theta_*.pkl'
+    pkl_files_intermediate = glob.glob(pkl_pattern_intermediate)
+    
+    if not pkl_files_intermediate:
+        raise FileNotFoundError(f"No optimization result files found. Looking for:\n"
+                              f"  - {pkl_pattern_combined}\n"
+                              f"  - {pkl_pattern_old}\n"
+                              f"  - {pkl_pattern_intermediate}")
+    
+    # Load all intermediate files and combine them
+    print(f"Found {len(pkl_files_intermediate)} intermediate files. Combining them...")
+    results_dict = {}
+    for pkl_file in pkl_files_intermediate:
+        with open(pkl_file, 'rb') as f:
+            data = pickle.load(f)
+            results_dict[data['original_theta']] = data['result']
+    
+    # Reconstruct the saved_data structure
+    # Get fixed_params and timestamp from first file
+    with open(pkl_files_intermediate[0], 'rb') as f:
+        first_data = pickle.load(f)
+        
+    saved_data = {
+        'results_dict': results_dict,
+        'original_theta_values': sorted(results_dict.keys()),
+        'fixed_params': first_data['fixed_params'],
+        'timestamp': first_data['timestamp'],
+    }
+    
+    print(f"Successfully combined {len(results_dict)} intermediate result files")
+    latest_pkl = "Combined from intermediate files"
 
-with open(latest_pkl, 'rb') as f:
-    saved_data = pickle.load(f)
+# Load data if we haven't already (from intermediate files case)
+if 'saved_data' not in locals():
+    with open(latest_pkl, 'rb') as f:
+        saved_data = pickle.load(f)
 
 # Extract data
 results_dict = saved_data['results_dict']
@@ -61,7 +101,7 @@ print(f"Original theta values: {original_theta_values}")
 print(f"\n{'='*70}")
 print("SUMMARY TABLE")
 print(f"{'='*70}")
-print(f"\n{'Original Theta':<15} {'Rate Scaling':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Final MSE':<12} {'Func Evals':<12}")
+print(f"\n{'Original Theta':<15} {'Rate Scaling':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Sq. Err':<12}")
 print("-" * 80)
 
 for original_theta in original_theta_values:
@@ -70,8 +110,46 @@ for original_theta in original_theta_values:
           f"{result['rate_scaling_factor_opt']:<15.4f} "
           f"{result['theta_increment_opt']:<12} "
           f"{result['theta_poisson_opt']:<15} "
-          f"{result['final_objective_value']:<12.6f} "
-          f"{result['func_count']:<12}")
+          f"{result['final_objective_value']:<12.6f} ")
+
+# %%
+# Create 3-panel plot based on summary table
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+# Plot 1: Rate scaling factor vs original theta
+axes[0].plot(original_theta_values, 
+             [results_dict[theta]['rate_scaling_factor_opt'] for theta in original_theta_values],
+             marker='o', linewidth=2.5, markersize=10, color='#2E86AB')
+axes[0].set_xlabel('Original Theta')
+axes[0].set_ylabel('Rate Scaling Factor')
+axes[0].set_title('Rate Scaling Factor vs Original Theta')
+axes[0].set_xticks(original_theta_values)
+
+# Plot 2: Theta increment vs original theta
+axes[1].plot(original_theta_values, 
+             [results_dict[theta]['theta_increment_opt'] for theta in original_theta_values],
+             marker='s', linewidth=2.5, markersize=10, color='#A23B72')
+axes[1].set_xlabel('Original Theta')
+axes[1].set_ylabel('Theta Increment')
+axes[1].set_title('Theta Increment vs Original Theta')
+axes[1].set_xticks(original_theta_values)
+axes[1].set_yticks(range(0, max([results_dict[theta]['theta_increment_opt'] for theta in original_theta_values]) + 2))
+
+# Plot 3: Final squared error vs original theta
+axes[2].plot(original_theta_values, 
+             [results_dict[theta]['final_objective_value'] for theta in original_theta_values],
+             marker='^', linewidth=2.5, markersize=10, color='#F18F01')
+axes[2].set_xlabel('Original Theta')
+axes[2].set_ylabel('Squared Error)')
+axes[2].set_title('Sq. Err vs Original Theta(log scale)')
+axes[2].set_yscale('log')
+axes[2].set_xticks(original_theta_values)
+
+plt.tight_layout()
+summary_plot_filename = f'bads_rate_bound_summary_3panel_{timestamp}.png'
+plt.savefig(summary_plot_filename, dpi=150, bbox_inches='tight')
+print(f"\n✓ Summary plots saved to: {summary_plot_filename}")
+plt.show()
 
 # %%
 # Create comprehensive visualization
@@ -295,43 +373,3 @@ selected_theta = original_theta_values[0]  # Change index to analyze different t
 print(f"\nRunning detailed analysis for original_theta = {selected_theta}...")
 poisson_rt, poisson_acc = analyze_single_theta(selected_theta)
 
-# %%
-# Analyze trends across all theta values
-print(f"\n{'='*70}")
-print("TREND ANALYSIS")
-print(f"{'='*70}")
-
-# Check if rate scaling factor increases or decreases with theta
-rate_factors = [results_dict[theta]['rate_scaling_factor_opt'] for theta in original_theta_values]
-theta_increments = [results_dict[theta]['theta_increment_opt'] for theta in original_theta_values]
-
-# Compute correlations
-from scipy.stats import pearsonr, spearmanr
-
-corr_rate_theta, p_rate_theta = pearsonr(original_theta_values, rate_factors)
-corr_inc_theta, p_inc_theta = pearsonr(original_theta_values, theta_increments)
-
-print(f"\nCorrelation between original_theta and rate_scaling_factor:")
-print(f"  Pearson r = {corr_rate_theta:.4f}, p-value = {p_rate_theta:.4e}")
-
-print(f"\nCorrelation between original_theta and theta_increment:")
-print(f"  Pearson r = {corr_inc_theta:.4f}, p-value = {p_inc_theta:.4e}")
-
-# Print interpretation
-if abs(corr_rate_theta) > 0.7:
-    trend = "strong positive" if corr_rate_theta > 0 else "strong negative"
-    print(f"\n→ There is a {trend} relationship between original theta and rate scaling factor")
-else:
-    print(f"\n→ The relationship between original theta and rate scaling factor is weak or moderate")
-
-if abs(corr_inc_theta) > 0.7:
-    trend = "strong positive" if corr_inc_theta > 0 else "strong negative"
-    print(f"→ There is a {trend} relationship between original theta and theta increment")
-else:
-    print(f"→ The relationship between original theta and theta increment is weak or moderate")
-
-print(f"\n{'='*70}")
-print("ANALYSIS COMPLETE")
-print(f"{'='*70}")
-
-# %%

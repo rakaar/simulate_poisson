@@ -26,7 +26,7 @@ N_sim_rtd = int(20e3)  # Number of trials for RTD (reaction time distribution)
 # 
 # N_right_and_left = round(((corr_factor - 1)/c) + 1)
 N_right_and_left = int(100)
-c = 1e-2
+c = 2/100
 
 # corr_factor = 1 + (N_right_and_left - 1)*c
 corr_factor = 1
@@ -36,13 +36,15 @@ N_left = N_right_and_left
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 
-theta = 2 + 1
+theta_increment = 3
+theta = 2 + theta_increment
 theta_scaled = theta * corr_factor
 
 # random animal's params
 lam = 1.3
 l = 0.9
-Nr0 = 13.3 * 1.55
+rate_scaling_factor = 2.95
+Nr0 = 13.3 * rate_scaling_factor
 # Nr0 = 100
 exponential_noise_to_spk_time = 0 # Scale parameter in seconds
 # exponential_noise_to_spk_time = 1e-3 # Scale parameter in seconds
@@ -74,6 +76,8 @@ r_left_scaled = r0_scaled * rl
 r_right = r0 * rr
 r_left = r0 * rl
 
+r_right_ddm = r_right/rate_scaling_factor
+r_left_ddm = r_left / rate_scaling_factor
 
 T = 50  # Max duration of a single trial (seconds)
 
@@ -225,10 +229,10 @@ print(f"Proportion of No-Decision (0) trials: {prop_no_decision:.2%}")
 # ===================================================================
 
 N_neurons = N_right
-mu = N_neurons * (r_right - r_left)
+mu = N_neurons * (r_right_ddm - r_left_ddm)
 # corr_factor_ddm = 1 + ((N_neurons - 1) * c)
 corr_factor_ddm = 1
-sigma_sq = N_neurons * (r_right + r_left) * corr_factor_ddm
+sigma_sq = N_neurons * (r_right_ddm + r_left_ddm) * corr_factor_ddm
 sigma = sigma_sq**0.5
 theta_ddm = 2
 # theta_ddm = 2.5
@@ -342,7 +346,7 @@ fig, axes = plt.subplots(2, 1, figsize=(15, 12))
 ax1 = axes[0]
 
 max_T_plot = np.max(results_array[(results_array[:, 1] == 1), 0])
-bins_rt = np.arange(0, max_T_plot, max_T_plot / 1000)
+bins_rt = np.arange(0, 1, 0.01)
 
 pos_rts_poisson = results_array[(results_array[:, 1] == 1), 0]
 neg_rts_poisson = results_array[(results_array[:, 1] == -1), 0]
@@ -390,7 +394,7 @@ ax1.set_title(
 # ax1.set_ylim(-1.7, 1.7)
 ax1.legend(loc='upper right')
 ax1.grid(axis='y', alpha=0.3)
-ax1.set_xlim(0, 0.4)
+ax1.set_xlim(0, 1)
 
 # --- BOTTOM PLOT: Evidence Jump Distribution (Time-binned) ---
 ax2 = axes[1]
