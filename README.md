@@ -187,3 +187,7 @@ Use .venv library
 - poisson_ddm_mgf_n_rho_vary.py: DDM fix, Poisson vary - correlation, N
 - poisson_ddm_mgf_rate_theta_vary.py: DDM fix, Poisson vary - rate
 - poisson_ddm_mgf_rate_bound_theta_vary.py - DDM fix, poisson vary - bound
+
+- `find_bound_incr_rate_scale_bads.py` : BADS for rateX, bound+ to match DDM
+- `analyse_bads_rate_bound_optimization.py` - analysis of above BADS
+- 
