@@ -119,8 +119,8 @@ for t_idx, theta_p_inc in enumerate(theta_increment_arr):
 ABL_range = [20, 40, 60]
 ILD_range = [1,2,4,8,16]
 
-best_rate_factor = 1.54
-best_theta_inc = 1
+best_rate_factor = 1.3
+best_theta_inc = 0
 
 original_theta = 2  
 
@@ -193,3 +193,4 @@ for a_idx, ABL in enumerate(ABL_range):
     # plt.legend()
 plt.suptitle(f'rate x = {best_rate_factor}, bound inc = {best_theta_inc}, original theta = {original_theta}, Sq.Err = {squared_error_acc:.6f}')
 # %%
+best_theta_inc

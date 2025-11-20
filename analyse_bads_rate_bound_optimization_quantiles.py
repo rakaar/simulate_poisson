@@ -111,6 +111,11 @@ for original_theta in original_theta_values:
           f"{result['theta_increment_opt']:<12} "
           f"{result['theta_poisson_opt']:<15} "
           f"{result['final_objective_value']:<12.6f} ")
+# TEMP, NOTE, TODO:
+result['rate_scaling_factor_opt'] = 0.85
+print(f'===========================================')
+print(f'rate_scaling_factor_opt manually hardcoded to {result["rate_scaling_factor_opt"]}')
+print(f'===========================================')
 
 # %%
 # Create 3-panel plot based on summary table
@@ -256,7 +261,7 @@ def run_ddm_trial_single(trial_idx, N, r_right, r_left, theta, dt_sim=1e-4):
     dB = np.sqrt(dt_sim)
     
     # Simulation parameters
-    max_steps = int(50 / dt_sim)  # 50 seconds max
+    max_steps = int(5 / dt_sim)  # 50 seconds max
     
     # Initialize
     position = 0
@@ -440,13 +445,15 @@ def simulate_validation_data(original_theta):
         print(f"\nStimulus {stim_idx}/{total_stimuli}: ABL={ABL}, ILD={ILD}")
         
         # Simulate DDM
-        ddm_q, ddm_acc, ddm_rts = simulate_ddm_for_stimulus(ABL, ILD, original_theta, n_trials=N_TRIALS_VALIDATE, show_progress=True)
+        print(f'DDM data for ABL={ABL}, ILD={ILD}')
+        ddm_q, ddm_acc, ddm_rts = simulate_ddm_for_stimulus(ABL, ILD, original_theta, n_trials=N_TRIALS_VALIDATE, show_progress=False)
         ddm_quantiles_dict[(ABL, ILD)] = ddm_q
         ddm_acc_dict[(ABL, ILD)] = ddm_acc
         ddm_rts_dict[(ABL, ILD)] = ddm_rts
         
         # Simulate Poisson
-        poisson_q, poisson_acc, poisson_rts = simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson_opt, n_trials=N_TRIALS_VALIDATE, show_progress=True)
+        print(f'Poisson data for ABL={ABL}, ILD={ILD}')
+        poisson_q, poisson_acc, poisson_rts = simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson_opt, n_trials=N_TRIALS_VALIDATE, show_progress=False)
         poisson_quantiles_dict[(ABL, ILD)] = poisson_q
         poisson_acc_dict[(ABL, ILD)] = poisson_acc
         poisson_rts_dict[(ABL, ILD)] = poisson_rts
@@ -490,7 +497,8 @@ def plot_validation_results(validation_data, timestamp):
     
     # ===== QUANTILE PLOTS (1x3) =====
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    
+    # NOTE: just to test effect of delay. 
+    NDT = 0
     for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
         ax = axes[ax_idx]
         
@@ -499,13 +507,14 @@ def plot_validation_results(validation_data, timestamp):
             ddm_q_values = [ddm_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
             # Poisson quantiles
             poisson_q_values = [poisson_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
-            
+            print(f'ABL = {ABL}, Quantile={quantile_labels[q_idx]}')
+            print(f'ddm - poisson = {np.array(ddm_q_values) - np.array(poisson_q_values)}')
             # Plot with different line styles for different quantiles
             alpha_val = 0.5 + (q_idx * 0.1)
-            ax.plot(VALIDATION_ILD_RANGE, ddm_q_values, marker='o', markersize=6, 
+            ax.plot(VALIDATION_ILD_RANGE, np.array(ddm_q_values), marker='o', markersize=6, 
                    label=f'{quantile_labels[q_idx]}', color=ABL_color_map[ABL], 
                    alpha=alpha_val, linewidth=1.5)
-            ax.plot(VALIDATION_ILD_RANGE, poisson_q_values, marker='x', markersize=8, 
+            ax.plot(VALIDATION_ILD_RANGE, np.array(poisson_q_values) + NDT, marker='x', markersize=8, 
                    linestyle='--', color=ABL_color_map[ABL], alpha=alpha_val, linewidth=1.5)
         
         ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
@@ -647,3 +656,4 @@ def plot_rt_distributions(validation_data, timestamp):
 # Plot RT distributions (3×5 grid)
 plot_rt_distributions(validation_data, timestamp)
 # %%
+# check delta E
