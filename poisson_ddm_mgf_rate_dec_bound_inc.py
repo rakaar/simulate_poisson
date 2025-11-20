@@ -26,7 +26,7 @@ dB = 1e-3
 # %%
 N_sim = int(10e3)
 
-rho = 2/100
+rho = 1e-3
 N = 100  # Fixed number of neurons
 theta_range = [2, 4]
 rate_multiplication_factor_range = [1, 1.3]  # Array of rate multiplication factors
@@ -119,8 +119,8 @@ for t_idx, theta_p_inc in enumerate(theta_increment_arr):
 ABL_range = [20, 40, 60]
 ILD_range = [1,2,4,8,16]
 
-best_rate_factor = 2.95
-best_theta_inc = 3
+best_rate_factor = 1.54
+best_theta_inc = 1
 
 original_theta = 2  
 
