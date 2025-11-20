@@ -297,6 +297,7 @@ def simulate_ddm_for_stimulus(ABL, ILD, theta_ddm, n_trials=N_TRIALS_VALIDATE, s
     Returns:
         quantiles: Array of [q10, q30, q50, q70, q90]
         accuracy: Proportion of correct (right) choices
+        rts: Raw RT data (for distribution plotting)
     """
     # Calculate rates
     r0 = Nr0_base / N
@@ -337,7 +338,7 @@ def simulate_ddm_for_stimulus(ABL, ILD, theta_ddm, n_trials=N_TRIALS_VALIDATE, s
     # Compute quantiles
     quantiles = compute_quantiles_from_rt_data(rts, quantiles=[0.1, 0.3, 0.5, 0.7, 0.9])
     
-    return quantiles, accuracy
+    return quantiles, accuracy, rts
 
 
 def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson, n_trials=N_TRIALS_VALIDATE, show_progress=True):
@@ -347,6 +348,7 @@ def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson, n_trials=
     Returns:
         quantiles: Array of [q10, q30, q50, q70, q90]
         accuracy: Proportion of correct (right) choices
+        rts: Raw RT data (for distribution plotting)
     """
     # Calculate rates
     r0 = Nr0_scaled / N
@@ -387,7 +389,7 @@ def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson, n_trials=
     # Compute quantiles
     quantiles = compute_quantiles_from_rt_data(rts, quantiles=[0.1, 0.3, 0.5, 0.7, 0.9])
     
-    return quantiles, accuracy
+    return quantiles, accuracy, rts
 
 
 # %%
@@ -397,8 +399,9 @@ def simulate_validation_data(original_theta):
     This is the expensive operation - separate from plotting.
     
     Returns:
-        dict with keys: ddm_quantiles_dict, ddm_acc_dict, poisson_quantiles_dict, 
-                        poisson_acc_dict, rate_scaling_factor_opt, theta_poisson_opt
+        dict with keys: ddm_quantiles_dict, ddm_acc_dict, ddm_rts_dict,
+                        poisson_quantiles_dict, poisson_acc_dict, poisson_rts_dict,
+                        rate_scaling_factor_opt, theta_poisson_opt, original_theta
     """
     print(f"\n{'='*70}")
     print(f"GENERATING VALIDATION DATA FOR ORIGINAL THETA = {original_theta}")
@@ -420,8 +423,10 @@ def simulate_validation_data(original_theta):
     # Storage for results
     ddm_quantiles_dict = {}
     ddm_acc_dict = {}
+    ddm_rts_dict = {}  # Store raw RTs for distribution plotting
     poisson_quantiles_dict = {}
     poisson_acc_dict = {}
+    poisson_rts_dict = {}  # Store raw RTs for distribution plotting
     
     # Simulate for all stimuli
     total_stimuli = len(VALIDATION_ABL_RANGE) * len(VALIDATION_ILD_RANGE)
@@ -435,22 +440,26 @@ def simulate_validation_data(original_theta):
         print(f"\nStimulus {stim_idx}/{total_stimuli}: ABL={ABL}, ILD={ILD}")
         
         # Simulate DDM
-        ddm_q, ddm_acc = simulate_ddm_for_stimulus(ABL, ILD, original_theta, n_trials=N_TRIALS_VALIDATE, show_progress=True)
+        ddm_q, ddm_acc, ddm_rts = simulate_ddm_for_stimulus(ABL, ILD, original_theta, n_trials=N_TRIALS_VALIDATE, show_progress=True)
         ddm_quantiles_dict[(ABL, ILD)] = ddm_q
         ddm_acc_dict[(ABL, ILD)] = ddm_acc
+        ddm_rts_dict[(ABL, ILD)] = ddm_rts
         
         # Simulate Poisson
-        poisson_q, poisson_acc = simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson_opt, n_trials=N_TRIALS_VALIDATE, show_progress=True)
+        poisson_q, poisson_acc, poisson_rts = simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson_opt, n_trials=N_TRIALS_VALIDATE, show_progress=True)
         poisson_quantiles_dict[(ABL, ILD)] = poisson_q
         poisson_acc_dict[(ABL, ILD)] = poisson_acc
+        poisson_rts_dict[(ABL, ILD)] = poisson_rts
     
     print("\n✓ All simulations complete")
     
     return {
         'ddm_quantiles_dict': ddm_quantiles_dict,
         'ddm_acc_dict': ddm_acc_dict,
+        'ddm_rts_dict': ddm_rts_dict,
         'poisson_quantiles_dict': poisson_quantiles_dict,
         'poisson_acc_dict': poisson_acc_dict,
+        'poisson_rts_dict': poisson_rts_dict,
         'rate_scaling_factor_opt': rate_scaling_factor_opt,
         'theta_poisson_opt': theta_poisson_opt,
         'original_theta': original_theta
@@ -560,4 +569,81 @@ validation_data = simulate_validation_data(selected_theta)
 # Step 2: Create plots (cheap - can rerun to adjust styling)
 plot_validation_results(validation_data, timestamp)
 
+# %%
+def plot_rt_distributions(validation_data, timestamp):
+    """
+    Plot RT distributions for all ABL×ILD combinations (3×5 grid).
+    Shows both DDM and Poisson distributions overlaid.
+    
+    Parameters:
+        validation_data: dict returned by simulate_validation_data()
+        timestamp: timestamp string for filename
+    """
+    # Extract data
+    ddm_rts_dict = validation_data['ddm_rts_dict']
+    poisson_rts_dict = validation_data['poisson_rts_dict']
+    ddm_acc_dict = validation_data['ddm_acc_dict']
+    poisson_acc_dict = validation_data['poisson_acc_dict']
+    rate_scaling_factor_opt = validation_data['rate_scaling_factor_opt']
+    theta_poisson_opt = validation_data['theta_poisson_opt']
+    original_theta = validation_data['original_theta']
+    
+    # Create 3×5 subplot grid
+    fig, axes = plt.subplots(3, 5, figsize=(20, 12))
+    
+    for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
+        for col_idx, ILD in enumerate(VALIDATION_ILD_RANGE):
+            ax = axes[row_idx, col_idx]
+            
+            # Get RT data for this stimulus
+            ddm_rts = ddm_rts_dict[(ABL, ILD)]
+            poisson_rts = poisson_rts_dict[(ABL, ILD)]
+            
+            # Filter out NaNs
+            ddm_rts_valid = ddm_rts[~np.isnan(ddm_rts)]
+            poisson_rts_valid = poisson_rts[~np.isnan(poisson_rts)]
+            
+            # Determine bin edges (use same bins for both)
+            # max_rt = max(np.max(ddm_rts_valid) if len(ddm_rts_valid) > 0 else 1,
+            #             np.max(poisson_rts_valid) if len(poisson_rts_valid) > 0 else 1)
+            # bins = np.linspace(0, min(max_rt, 2), 50)  # Cap at 2s for visibility
+            bins = np.arange(0,2,0.01)
+            # Plot histograms
+            ax.hist(ddm_rts_valid, bins=bins, label='DDM', 
+                   color='blue', density=True, histtype='step')
+            ax.hist(poisson_rts_valid, bins=bins, label='Poisson', 
+                   color='red', density=True, histtype='step')
+            
+            # Add title with stimulus info and accuracy
+            ddm_acc = ddm_acc_dict[(ABL, ILD)]
+            poisson_acc = poisson_acc_dict[(ABL, ILD)]
+            ax.set_title(f'ABL={ABL}, ILD={ILD}\nDDM acc={ddm_acc:.3f}, Poisson acc={poisson_acc:.3f}',
+                        fontsize=9)
+            
+            # Labels only on edges
+            if col_idx == 0:
+                ax.set_ylabel('Density', fontsize=9)
+            if row_idx == 2:
+                ax.set_xlabel('RT (s)', fontsize=9)
+            
+            # Legend only on first subplot
+            if row_idx == 0 and col_idx == 0:
+                ax.legend(fontsize=8, loc='upper right')
+            
+            # ax.grid(True, alpha=0.3, linestyle='--')
+            ax.tick_params(labelsize=8)
+            ax.set_xlim(0,0.8)
+            ax.set_ylim(0,15)
+    fig.suptitle(f'RT Distributions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, Rate×{rate_scaling_factor_opt:.2f}\n'
+                 f'{len(ddm_rts_valid)} trials per stimulus', 
+                 fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(f'validation_rt_distributions_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
+    print(f"\n✓ RT distributions plot saved: validation_rt_distributions_theta_{original_theta}_{timestamp}.png")
+    plt.show()
+
+
+# %%
+# Plot RT distributions (3×5 grid)
+plot_rt_distributions(validation_data, timestamp)
 # %%

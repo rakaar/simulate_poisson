@@ -36,12 +36,12 @@ lam = 1.3
 l = 0.9
 Nr0_base = 13.3  # Base Nr0 before multiplication
 dt = 1e-6  # Time step for continuous DDM simulation
-rho = 2e-3
-N = 500  # Fixed number of neurons
+rho = 1e-3
+N = 100  # Fixed number of neurons
 
 # Stimuli to test
-ABL_range = [20, 60]
-ILD_range = [2,4]
+ABL_range = [20,40, 60]
+ILD_range = [1,2,4]
 
 # Number of trials for bound offset estimation
 N_sim_bound_offset = int(10e3)
@@ -264,9 +264,9 @@ def objective_function_rate_bound(x, original_theta, ddm_quantiles_data, ddm_acc
     # Theta increment must be an integer (round to nearest integer)
     theta_increment = int(np.round(theta_increment_raw))
     
-    # Ensure theta_increment is at least 1
-    if theta_increment < 1:
-        theta_increment = 1
+    # increment can be zero too
+    # if theta_increment < 1:
+    #     theta_increment = 1
     
     # Calculate scaled Nr0 and poisson theta
     Nr0_scaled = Nr0_base * rate_scaling_factor
@@ -366,7 +366,7 @@ for original_theta in original_theta_values:
     # Parameters: [rate_scaling_factor, theta_increment]
     
     # Hard bounds (actual optimization constraints)
-    lower_bounds = np.array([1.0, 1.0])  # rate: [1, 10], theta_inc: [1, 20]
+    lower_bounds = np.array([1.0, 0.0])  # rate: [1, 10], theta_inc: [1, 20]
     upper_bounds = np.array([3.0, 7.0])
     
     # Plausible bounds (where we expect the solution to be)
