@@ -1,11 +1,12 @@
 # %%
 """
-BADS Optimization to Find Optimal Rate Scaling Factor and Bound Increment
+BADS Optimization to Find Optimal Right/Left Rate Scaling Factors and Bound Increment
 
 For each original_theta value (2, 3, 4, 5, 6, 7), this script uses BADS optimization
 to find the best:
-- rate_scaling_factor: How much to scale up firing rates (range: 1x to 10x)
-- theta_increment: How much to increase the bound (range: +1 to +20, integer values)
+- rate_scaling_right: How much to scale up right firing rate (shared bounds with left; default hard bounds 0.01-3)
+- rate_scaling_left: How much to scale up left firing rate (shared bounds with right; default hard bounds 0.01-3)
+- theta_increment: How much to increase the bound (hard bounds 0–7, cast to integer)
 
 The objective is to minimize squared error between DDM and Poisson predictions
 for both:
@@ -184,12 +185,13 @@ def compute_ddm_predictions(original_theta, n_trials=N_sim_ddm_quantiles):
     return ddm_quantiles_data, ddm_acc_data
 
 
-def run_poisson_simulations_get_all(Nr0_scaled, theta_poisson, ABL, ILD, n_trials=N_sim_poisson_quantiles):
+def run_poisson_simulations_get_all(Nr0_scaled_right, Nr0_scaled_left, theta_poisson, ABL, ILD, n_trials=N_sim_poisson_quantiles):
     """
     Run Poisson simulations once and compute bound offset, RT quantiles, and accuracy.
     
     Parameters:
-        Nr0_scaled: Scaled firing rate
+        Nr0_scaled_right: Scaled firing rate for right channel
+        Nr0_scaled_left: Scaled firing rate for left channel
         theta_poisson: Poisson threshold
         ABL: Average binaural level
         ILD: Interaural level difference
@@ -201,7 +203,8 @@ def run_poisson_simulations_get_all(Nr0_scaled, theta_poisson, ABL, ILD, n_trial
         accuracy: Proportion of correct choices
     """
     # Calculate rates
-    r0 = Nr0_scaled / N
+    r0_right = Nr0_scaled_right / N
+    r0_left = Nr0_scaled_left / N
     r_db = (2*ABL + ILD)/2
     l_db = (2*ABL - ILD)/2
     pr = (10 ** (r_db/20))
@@ -210,8 +213,8 @@ def run_poisson_simulations_get_all(Nr0_scaled, theta_poisson, ABL, ILD, n_trial
     den = (pr ** (lam * l)) + (pl ** (lam * l))
     rr = (pr ** lam) / den
     rl = (pl ** lam) / den
-    r_right = r0 * rr
-    r_left = r0 * rl
+    r_right = r0_right * rr
+    r_left = r0_left * rl
     
     # Run simulations once
     poisson_data = Parallel(n_jobs=multiprocessing.cpu_count()-2)(
@@ -249,7 +252,7 @@ def objective_function_rate_bound(x, original_theta, ddm_quantiles_data, ddm_acc
     Objective function for BADS optimization using RT quantiles.
     
     Parameters:
-        x: [rate_scaling_factor, theta_increment]
+        x: [rate_scaling_right, rate_scaling_left, theta_increment]
         original_theta: The original DDM theta value
         ddm_quantiles_data: dict of DDM RT quantiles [q10, q30, q50, q70, q90] for each stimulus
         ddm_acc_data: dict of DDM accuracies for each stimulus
@@ -258,8 +261,9 @@ def objective_function_rate_bound(x, original_theta, ddm_quantiles_data, ddm_acc
     Returns:
         total_squared_error: Sum of squared errors for quantiles and accuracy across all stimuli
     """
-    rate_scaling_factor = x[0]
-    theta_increment_raw = x[1]
+    rate_scaling_right = x[0]
+    rate_scaling_left = x[1]
+    theta_increment_raw = x[2]
     
     # Theta increment must be an integer (round to nearest integer)
     theta_increment = int(np.round(theta_increment_raw))
@@ -269,11 +273,13 @@ def objective_function_rate_bound(x, original_theta, ddm_quantiles_data, ddm_acc
     #     theta_increment = 1
     
     # Calculate scaled Nr0 and poisson theta
-    Nr0_scaled = Nr0_base * rate_scaling_factor
+    Nr0_scaled_right = Nr0_base * rate_scaling_right
+    Nr0_scaled_left = Nr0_base * rate_scaling_left
     theta_poisson = original_theta + theta_increment
     
     if verbose:
-        print(f"\n  rate_scaling_factor: {rate_scaling_factor:.4f}")
+        print(f"\n  rate_scaling_right: {rate_scaling_right:.4f}")
+        print(f"  rate_scaling_left: {rate_scaling_left:.4f}")
         print(f"  theta_increment (rounded): {theta_increment}")
         print(f"  theta_poisson: {theta_poisson}")
     
@@ -286,7 +292,7 @@ def objective_function_rate_bound(x, original_theta, ddm_quantiles_data, ddm_acc
             # Run simulations once to get quantiles and accuracy
             # Note: bound offset not needed since we're using simulations, not analytical formulas
             _, poisson_quantiles, poisson_acc = run_poisson_simulations_get_all(
-                Nr0_scaled, theta_poisson, ABL, ILD, n_trials=N_sim_poisson_quantiles
+                Nr0_scaled_right, Nr0_scaled_left, theta_poisson, ABL, ILD, n_trials=N_sim_poisson_quantiles
             )
             
             poisson_quantiles_data[(ABL, ILD)] = poisson_quantiles
@@ -310,8 +316,8 @@ def objective_function_rate_bound(x, original_theta, ddm_quantiles_data, ddm_acc
         (poisson_acc_data[(ABL, ILD)] - ddm_acc_data[(ABL, ILD)])**2 
         for ABL in ABL_range for ILD in ILD_range
     )
-    
-    total_squared_error = squared_error_quantiles + squared_error_acc
+    w_acc_error = 5
+    total_squared_error = squared_error_quantiles + w_acc_error * squared_error_acc
     
     if verbose:
         print(f"  Squared Error (Quantiles): {squared_error_quantiles:.6f}")
@@ -327,8 +333,8 @@ results_dict = {}
 
 # Create timestamped output files for progressive saving
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-text_log_filename = f'bads_optimization_log_{timestamp}.txt'
-pickle_filename_base = f'bads_rate_bound_optimization_results_{timestamp}'
+text_log_filename = f'bads_optimization_log_left_right_seperate_{timestamp}.txt'
+pickle_filename_base = f'bads_rate_bound_optimization_results_left_right_seperate_{timestamp}'
 
 # Initialize text log file
 with open(text_log_filename, 'w') as log_file:
@@ -363,21 +369,21 @@ for original_theta in original_theta_values:
     print(f"DDM predictions computed for {len(ddm_quantiles_data)} stimuli")
     
     # BADS optimization setup
-    # Parameters: [rate_scaling_factor, theta_increment]
+    # Parameters: [rate_scaling_right, rate_scaling_left, theta_increment]
     
-    # Hard bounds (actual optimization constraints)
-    lower_bounds = np.array([0.01, 0.0])  # rate: [1, 10], theta_inc: [1, 20]
-    upper_bounds = np.array([3.0, 7.0])
+    # Hard bounds (actual optimization constraints); same bounds for left/right scaling
+    lower_bounds = np.array([0.01, 0.01, 0.0])
+    upper_bounds = np.array([3.0, 3.0, 7.0])
     
     # Plausible bounds (where we expect the solution to be)
-    plausible_lower_bounds = np.array([1.1, 2.0])
-    plausible_upper_bounds = np.array([2, 5.0])
+    plausible_lower_bounds = np.array([1.1, 1.1, 2.0])
+    plausible_upper_bounds = np.array([2.0, 2.0, 5.0])
     
     # Initial guess (midpoint of plausible range)
     x0 = (plausible_lower_bounds + plausible_upper_bounds) / 2
     
     print(f"\nBADS setup:")
-    print(f"  Parameter structure: [rate_scaling_factor, theta_increment]")
+    print(f"  Parameter structure: [rate_scaling_right, rate_scaling_left, theta_increment]")
     print(f"  Lower bounds: {lower_bounds}")
     print(f"  Upper bounds: {upper_bounds}")
     print(f"  Plausible lower bounds: {plausible_lower_bounds}")
@@ -409,15 +415,17 @@ for original_theta in original_theta_values:
     
     # Extract optimized parameters
     x_opt = optimize_result['x']
-    rate_scaling_factor_opt = x_opt[0]
-    theta_increment_opt = int(np.round(x_opt[1]))  # Round to integer
+    rate_scaling_right_opt = x_opt[0]
+    rate_scaling_left_opt = x_opt[1]
+    theta_increment_opt = int(np.round(x_opt[2]))  # Round to integer
     
     print(f"\n{'='*70}")
     print(f"OPTIMIZATION COMPLETE FOR ORIGINAL THETA = {original_theta}")
     print(f"{'='*70}")
     print(f"Optimization time: {optimization_time:.2f} seconds")
     print(f"\nOptimized parameters:")
-    print(f"  rate_scaling_factor: {rate_scaling_factor_opt:.6f}")
+    print(f"  rate_scaling_right: {rate_scaling_right_opt:.6f}")
+    print(f"  rate_scaling_left: {rate_scaling_left_opt:.6f}")
     print(f"  theta_increment: {theta_increment_opt}")
     print(f"  theta_poisson: {original_theta + theta_increment_opt}")
     print(f"\nOptimization statistics:")
@@ -429,7 +437,8 @@ for original_theta in original_theta_values:
     # Note: We don't save the full 'bads_result' because it contains unpicklable function references
     results_dict[original_theta] = {
         'original_theta': original_theta,
-        'rate_scaling_factor_opt': rate_scaling_factor_opt,
+        'rate_scaling_right_opt': rate_scaling_right_opt,
+        'rate_scaling_left_opt': rate_scaling_left_opt,
         'theta_increment_opt': theta_increment_opt,
         'theta_poisson_opt': original_theta + theta_increment_opt,
         'x_opt': x_opt,
@@ -448,7 +457,8 @@ for original_theta in original_theta_values:
         log_file.write(f"{'='*70}\n")
         log_file.write(f"Optimization time: {optimization_time:.2f} seconds ({optimization_time/60:.2f} minutes)\n")
         log_file.write(f"\nOptimized parameters:\n")
-        log_file.write(f"  rate_scaling_factor: {rate_scaling_factor_opt:.8f}\n")
+        log_file.write(f"  rate_scaling_right: {rate_scaling_right_opt:.8f}\n")
+        log_file.write(f"  rate_scaling_left: {rate_scaling_left_opt:.8f}\n")
         log_file.write(f"  theta_increment: {theta_increment_opt}\n")
         log_file.write(f"  theta_poisson: {original_theta + theta_increment_opt}\n")
         log_file.write(f"\nOptimization statistics:\n")
@@ -528,21 +538,22 @@ except Exception as e:
 print(f"\n{'='*70}")
 print("SUMMARY TABLE")
 print(f"{'='*70}")
-print(f"\n{'Original Theta':<15} {'Rate Scaling':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Final MSE':<12}")
-print("-" * 70)
+print(f"\n{'Original Theta':<15} {'Rate Scale R':<15} {'Rate Scale L':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Final MSE':<12}")
+print("-" * 85)
 
 # Also write summary to text log
 with open(text_log_filename, 'a') as log_file:
     log_file.write(f"\n\n{'='*70}\n")
     log_file.write("FINAL SUMMARY TABLE\n")
     log_file.write(f"{'='*70}\n")
-    log_file.write(f"\n{'Original Theta':<15} {'Rate Scaling':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Final MSE':<12}\n")
-    log_file.write("-" * 70 + "\n")
+    log_file.write(f"\n{'Original Theta':<15} {'Rate Scale R':<15} {'Rate Scale L':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Final MSE':<12}\n")
+    log_file.write("-" * 85 + "\n")
 
 for original_theta in original_theta_values:
     result = results_dict[original_theta]
     summary_line = (f"{original_theta:<15} "
-                   f"{result['rate_scaling_factor_opt']:<15.4f} "
+                   f"{result['rate_scaling_right_opt']:<15.4f} "
+                   f"{result['rate_scaling_left_opt']:<15.4f} "
                    f"{result['theta_increment_opt']:<12} "
                    f"{result['theta_poisson_opt']:<15} "
                    f"{result['final_objective_value']:<12.6f}")
@@ -568,14 +579,28 @@ print(f"\n✓ Summary appended to text log: {text_log_filename}")
 # Plot results
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-# Plot 1: Rate scaling factor vs original theta
-axes[0].plot(original_theta_values, 
-             [results_dict[theta]['rate_scaling_factor_opt'] for theta in original_theta_values],
-             marker='o', linewidth=2, markersize=8)
+# Plot 1: Rate scaling factors vs original theta
+axes[0].plot(
+    original_theta_values,
+    [results_dict[theta]['rate_scaling_right_opt'] for theta in original_theta_values],
+    marker='o',
+    linewidth=2,
+    markersize=8,
+    label='Right'
+)
+axes[0].plot(
+    original_theta_values,
+    [results_dict[theta]['rate_scaling_left_opt'] for theta in original_theta_values],
+    marker='o',
+    linewidth=2,
+    markersize=8,
+    label='Left'
+)
 axes[0].set_xlabel('Original Theta', fontsize=12)
 axes[0].set_ylabel('Optimal Rate Scaling Factor', fontsize=12)
-axes[0].set_title('Rate Scaling Factor vs Original Theta', fontsize=12)
+axes[0].set_title('Rate Scaling Factors vs Original Theta', fontsize=12)
 axes[0].grid(True, alpha=0.3)
+axes[0].legend(frameon=False)
 
 # Plot 2: Theta increment vs original theta
 axes[1].plot(original_theta_values, 
@@ -597,7 +622,7 @@ axes[2].set_yscale('log')
 axes[2].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plot_filename = f'bads_optimization_summary_{timestamp}.png'
+plot_filename = f'bads_optimization_summary_left_right_seperate_{timestamp}.png'
 plt.savefig(plot_filename, dpi=150, bbox_inches='tight')
 print(f"\n✓ Summary plot saved to: {plot_filename}")
 plt.show()

@@ -1,9 +1,10 @@
 # %%
 """
-Analysis script for BADS Rate Scaling and Bound Increment Optimization Results
+Analysis for BADS optimization with separate left/right rate scaling factors.
 
-This script loads the results from find_bound_incr_rate_scale_bads.py and provides
-detailed analysis and visualizations of the optimized parameters.
+Mirrors analyse_bads_rate_bound_optimization_quantiles.py but reads outputs from
+find_bound_incr_rate_scale_bads_include_quantiles_left_right_seperately.py where
+right and left rate scaling factors are fit independently.
 """
 
 # %%
@@ -22,8 +23,8 @@ from corr_poisson_utils_subtractive import run_poisson_trial
 # %%
 # Find and load the most recent optimization results
 # Try to find combined file first, then fall back to intermediate files
-pkl_pattern_combined = 'bads_rate_bound_optimization_results_*_all.pkl'
-pkl_pattern_old = 'bads_rate_bound_optimization_results_*.pkl'
+pkl_pattern_combined = 'bads_rate_bound_optimization_results_left_right_seperate_*_all.pkl'
+pkl_pattern_old = 'bads_rate_bound_optimization_results_left_right_seperate_*.pkl'
 
 pkl_files_combined = glob.glob(pkl_pattern_combined)
 pkl_files_old = [f for f in glob.glob(pkl_pattern_old) if not f.endswith('_all.pkl') and 'theta' not in f]
@@ -37,7 +38,7 @@ elif pkl_files_old:
     print(f"Loading results from: {latest_pkl}")
 else:
     # Try to load from intermediate files
-    pkl_pattern_intermediate = 'bads_rate_bound_optimization_results_*_theta_*.pkl'
+    pkl_pattern_intermediate = 'bads_rate_bound_optimization_results_left_right_seperate_*_theta_*.pkl'
     pkl_files_intermediate = glob.glob(pkl_pattern_intermediate)
     
     if not pkl_files_intermediate:
@@ -91,7 +92,7 @@ ABL_range = fixed_params['ABL_range']
 ILD_range = fixed_params['ILD_range']
 
 print("\n" + "="*70)
-print("BADS OPTIMIZATION RESULTS ANALYSIS")
+print("BADS OPTIMIZATION RESULTS ANALYSIS (LEFT/RIGHT SEPARATE)")
 print("="*70)
 print(f"\nLoaded results for {len(original_theta_values)} original_theta values")
 print(f"Original theta values: {original_theta_values}")
@@ -101,35 +102,46 @@ print(f"Original theta values: {original_theta_values}")
 print(f"\n{'='*70}")
 print("SUMMARY TABLE")
 print(f"{'='*70}")
-print(f"\n{'Original Theta':<15} {'Rate Scaling':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Sq. Err':<12}")
-print("-" * 80)
+print(f"\n{'Original Theta':<15} {'Rate Scale R':<15} {'Rate Scale L':<15} {'Theta Inc':<12} {'Theta Poisson':<15} {'Sq. Err':<12}")
+print("-" * 95)
 
 for original_theta in original_theta_values:
     result = results_dict[original_theta]
     print(f"{original_theta:<15} "
-          f"{result['rate_scaling_factor_opt']:<15.4f} "
+          f"{result['rate_scaling_right_opt']:<15.4f} "
+          f"{result['rate_scaling_left_opt']:<15.4f} "
           f"{result['theta_increment_opt']:<12} "
           f"{result['theta_poisson_opt']:<15} "
           f"{result['final_objective_value']:<12.6f} ")
-# TEMP, NOTE, TODO:
-# result['rate_scaling_factor_opt'] = 0.85
-
-print(f'===========================================')
-print(f'rate_scaling_factor_opt manually hardcoded to {result["rate_scaling_factor_opt"]}')
-print(f'===========================================')
 
 # %%
 # Create 3-panel plot based on summary table
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-# Plot 1: Rate scaling factor vs original theta
-axes[0].plot(original_theta_values, 
-             [results_dict[theta]['rate_scaling_factor_opt'] for theta in original_theta_values],
-             marker='o', linewidth=2.5, markersize=10, color='#2E86AB')
+# Plot 1: Rate scaling factors vs original theta
+axes[0].plot(
+    original_theta_values,
+    [results_dict[theta]['rate_scaling_right_opt'] for theta in original_theta_values],
+    marker='o',
+    linewidth=2.5,
+    markersize=10,
+    color='#2E86AB',
+    label='Right'
+)
+axes[0].plot(
+    original_theta_values,
+    [results_dict[theta]['rate_scaling_left_opt'] for theta in original_theta_values],
+    marker='s',
+    linewidth=2.5,
+    markersize=10,
+    color='#A23B72',
+    label='Left'
+)
 axes[0].set_xlabel('Original Theta')
 axes[0].set_ylabel('Rate Scaling Factor')
 axes[0].set_title('Rate Scaling Factor vs Original Theta')
 axes[0].set_xticks(original_theta_values)
+axes[0].legend()
 
 # Plot 2: Theta increment vs original theta
 axes[1].plot(original_theta_values, 
@@ -152,7 +164,7 @@ axes[2].set_yscale('log')
 axes[2].set_xticks(original_theta_values)
 
 plt.tight_layout()
-summary_plot_filename = f'bads_rate_bound_summary_3panel_{timestamp}.png'
+summary_plot_filename = f'bads_rate_bound_summary_left_right_seperate_3panel_{timestamp}.png'
 plt.savefig(summary_plot_filename, dpi=150, bbox_inches='tight')
 print(f"\n✓ Summary plots saved to: {summary_plot_filename}")
 plt.show()
@@ -161,16 +173,32 @@ plt.show()
 # Create comprehensive visualization
 fig = plt.figure(figsize=(18, 10))
 
-# Plot 1: Rate scaling factor vs original theta
+# Plot 1: Rate scaling factors vs original theta
 ax1 = plt.subplot(2, 3, 1)
-ax1.plot(original_theta_values, 
-         [results_dict[theta]['rate_scaling_factor_opt'] for theta in original_theta_values],
-         marker='o', linewidth=2, markersize=10, color='#2E86AB')
+ax1.plot(
+    original_theta_values,
+    [results_dict[theta]['rate_scaling_right_opt'] for theta in original_theta_values],
+    marker='o',
+    linewidth=2,
+    markersize=10,
+    color='#2E86AB',
+    label='Right'
+)
+ax1.plot(
+    original_theta_values,
+    [results_dict[theta]['rate_scaling_left_opt'] for theta in original_theta_values],
+    marker='s',
+    linewidth=2,
+    markersize=10,
+    color='#A23B72',
+    label='Left'
+)
 ax1.set_xlabel('Original Theta', fontsize=12, fontweight='bold')
 ax1.set_ylabel('Optimal Rate Scaling Factor', fontsize=12, fontweight='bold')
 ax1.set_title('Rate Scaling Factor vs Original Theta', fontsize=13, fontweight='bold')
 ax1.grid(True, alpha=0.3, linestyle='--')
 ax1.set_xticks(original_theta_values)
+ax1.legend(fontsize=10)
 
 # Plot 2: Theta increment vs original theta
 ax2 = plt.subplot(2, 3, 2)
@@ -232,8 +260,8 @@ ax6.grid(True, alpha=0.3, axis='y', linestyle='--')
 ax6.set_xticks(original_theta_values)
 
 plt.tight_layout()
-plt.savefig(f'bads_rate_bound_analysis_{timestamp}.png', dpi=150, bbox_inches='tight')
-print(f"\nComprehensive analysis plot saved to: bads_rate_bound_analysis_{timestamp}.png")
+plt.savefig(f'bads_rate_bound_analysis_left_right_seperate_{timestamp}.png', dpi=150, bbox_inches='tight')
+print(f"\nComprehensive analysis plot saved to: bads_rate_bound_analysis_left_right_seperate_{timestamp}.png")
 plt.show()
 
 # %%
@@ -347,7 +375,7 @@ def simulate_ddm_for_stimulus(ABL, ILD, theta_ddm, n_trials=N_TRIALS_VALIDATE, s
     return quantiles, accuracy, rts
 
 
-def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson, n_trials=N_TRIALS_VALIDATE, show_progress=True):
+def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled_right, Nr0_scaled_left, theta_poisson, n_trials=N_TRIALS_VALIDATE, show_progress=True):
     """
     Simulate Poisson for a single stimulus and compute quantiles and accuracy.
     
@@ -356,8 +384,9 @@ def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson, n_trials=
         accuracy: Proportion of correct (right) choices
         rts: Raw RT data (for distribution plotting)
     """
-    # Calculate rates
-    r0 = Nr0_scaled / N
+    # Calculate rates with separate left/right scaling
+    r0_right = Nr0_scaled_right / N
+    r0_left = Nr0_scaled_left / N
     r_db = (2*ABL + ILD)/2
     l_db = (2*ABL - ILD)/2
     pr = (10 ** (r_db/20))
@@ -366,8 +395,8 @@ def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson, n_trials=
     den = (pr ** (lam * l)) + (pl ** (lam * l))
     rr = (pr ** lam) / den
     rl = (pl ** lam) / den
-    r_right = r0 * rr
-    r_left = r0 * rl
+    r_right = r0_right * rr
+    r_left = r0_left * rl
     
     # Run Poisson simulations
     if show_progress:
@@ -407,24 +436,28 @@ def simulate_validation_data(original_theta):
     Returns:
         dict with keys: ddm_quantiles_dict, ddm_acc_dict, ddm_rts_dict,
                         poisson_quantiles_dict, poisson_acc_dict, poisson_rts_dict,
-                        rate_scaling_factor_opt, theta_poisson_opt, original_theta
+                        rate_scaling_right_opt, rate_scaling_left_opt,
+                        theta_poisson_opt, original_theta
     """
     print(f"\n{'='*70}")
     print(f"GENERATING VALIDATION DATA FOR ORIGINAL THETA = {original_theta}")
     print(f"{'='*70}")
     
     result = results_dict[original_theta]
-    rate_scaling_factor_opt = result['rate_scaling_factor_opt']
+    rate_scaling_right_opt = result['rate_scaling_right_opt']
+    rate_scaling_left_opt = result['rate_scaling_left_opt']
     theta_increment_opt = result['theta_increment_opt']
     theta_poisson_opt = result['theta_poisson_opt']
     
     print(f"\nOptimized parameters:")
-    print(f"  Rate scaling factor: {rate_scaling_factor_opt:.4f}")
+    print(f"  Rate scaling right: {rate_scaling_right_opt:.4f}")
+    print(f"  Rate scaling left: {rate_scaling_left_opt:.4f}")
     print(f"  Theta increment: {theta_increment_opt}")
     print(f"  DDM theta: {original_theta}")
     print(f"  Poisson theta: {theta_poisson_opt}")
     
-    Nr0_scaled = Nr0_base * rate_scaling_factor_opt
+    Nr0_scaled_right = Nr0_base * rate_scaling_right_opt
+    Nr0_scaled_left = Nr0_base * rate_scaling_left_opt
     
     # Storage for results
     ddm_quantiles_dict = {}
@@ -454,7 +487,15 @@ def simulate_validation_data(original_theta):
         
         # Simulate Poisson
         print(f'Poisson data for ABL={ABL}, ILD={ILD}')
-        poisson_q, poisson_acc, poisson_rts = simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled, theta_poisson_opt, n_trials=N_TRIALS_VALIDATE, show_progress=False)
+        poisson_q, poisson_acc, poisson_rts = simulate_poisson_for_stimulus(
+            ABL,
+            ILD,
+            Nr0_scaled_right,
+            Nr0_scaled_left,
+            theta_poisson_opt,
+            n_trials=N_TRIALS_VALIDATE,
+            show_progress=False
+        )
         poisson_quantiles_dict[(ABL, ILD)] = poisson_q
         poisson_acc_dict[(ABL, ILD)] = poisson_acc
         poisson_rts_dict[(ABL, ILD)] = poisson_rts
@@ -468,7 +509,8 @@ def simulate_validation_data(original_theta):
         'poisson_quantiles_dict': poisson_quantiles_dict,
         'poisson_acc_dict': poisson_acc_dict,
         'poisson_rts_dict': poisson_rts_dict,
-        'rate_scaling_factor_opt': rate_scaling_factor_opt,
+        'rate_scaling_right_opt': rate_scaling_right_opt,
+        'rate_scaling_left_opt': rate_scaling_left_opt,
         'theta_poisson_opt': theta_poisson_opt,
         'original_theta': original_theta
     }
@@ -488,7 +530,8 @@ def plot_validation_results(validation_data, timestamp):
     ddm_acc_dict = validation_data['ddm_acc_dict']
     poisson_quantiles_dict = validation_data['poisson_quantiles_dict']
     poisson_acc_dict = validation_data['poisson_acc_dict']
-    rate_scaling_factor_opt = validation_data['rate_scaling_factor_opt']
+    rate_scaling_right_opt = validation_data['rate_scaling_right_opt']
+    rate_scaling_left_opt = validation_data['rate_scaling_left_opt']
     theta_poisson_opt = validation_data['theta_poisson_opt']
     original_theta = validation_data['original_theta']
     
@@ -527,8 +570,10 @@ def plot_validation_results(validation_data, timestamp):
         ax.set_xticks(VALIDATION_ILD_RANGE)
         ax.set_xticklabels(VALIDATION_ILD_RANGE)
     
-    fig.suptitle(f'RT Quantiles: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, Rate×{rate_scaling_factor_opt:.2f}\n(dots=DDM, x=Poisson)', 
-                 fontsize=14, fontweight='bold', y=1.02)
+    fig.suptitle(
+        f'RT Quantiles: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
+        f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson)', 
+        fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
     plt.savefig(f'validation_quantiles_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
     print(f"\n✓ Quantile plot saved: validation_quantiles_theta_{original_theta}_{timestamp}.png")
@@ -560,8 +605,10 @@ def plot_validation_results(validation_data, timestamp):
         ax.set_xticks(VALIDATION_ILD_RANGE)
         ax.set_xticklabels(VALIDATION_ILD_RANGE)
     
-    fig.suptitle(f'Psychometric Functions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, Rate×{rate_scaling_factor_opt:.2f}\n(dots=DDM, x=Poisson)', 
-                 fontsize=14, fontweight='bold', y=1.02)
+    fig.suptitle(
+        f'Psychometric Functions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
+        f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson)', 
+        fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
     plt.savefig(f'validation_psychometric_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
     print(f"✓ Psychometric plot saved: validation_psychometric_theta_{original_theta}_{timestamp}.png")
@@ -594,7 +641,8 @@ def plot_rt_distributions(validation_data, timestamp):
     poisson_rts_dict = validation_data['poisson_rts_dict']
     ddm_acc_dict = validation_data['ddm_acc_dict']
     poisson_acc_dict = validation_data['poisson_acc_dict']
-    rate_scaling_factor_opt = validation_data['rate_scaling_factor_opt']
+    rate_scaling_right_opt = validation_data['rate_scaling_right_opt']
+    rate_scaling_left_opt = validation_data['rate_scaling_left_opt']
     theta_poisson_opt = validation_data['theta_poisson_opt']
     original_theta = validation_data['original_theta']
     
@@ -644,9 +692,13 @@ def plot_rt_distributions(validation_data, timestamp):
             ax.tick_params(labelsize=8)
             ax.set_xlim(0,0.8)
             ax.set_ylim(0,15)
-    fig.suptitle(f'RT Distributions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, Rate×{rate_scaling_factor_opt:.2f}\n'
-                 f'{len(ddm_rts_valid)} trials per stimulus', 
-                 fontsize=14, fontweight='bold')
+    fig.suptitle(
+        f'RT Distributions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
+        f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n'
+        f'{len(ddm_rts_valid)} trials per stimulus',
+        fontsize=14,
+        fontweight='bold'
+    )
     plt.tight_layout()
     plt.savefig(f'validation_rt_distributions_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
     print(f"\n✓ RT distributions plot saved: validation_rt_distributions_theta_{original_theta}_{timestamp}.png")
