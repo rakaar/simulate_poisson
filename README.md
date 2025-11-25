@@ -190,4 +190,34 @@ Use .venv library
 
 - `find_bound_incr_rate_scale_bads.py` : BADS for rateX, bound+ to match DDM
 - `analyse_bads_rate_bound_optimization.py` - analysis of above BADS
-- 
+
+## BADS Optimization with RT Quantiles (Left/Right Separate Rate Scaling)
+
+Scripts for fitting Poisson model parameters to match DDM behavior using RT quantiles (10th, 30th, 50th, 70th, 90th percentiles) instead of just mean RT.
+
+### Core Optimization Scripts
+- `find_bound_incr_rate_scale_bads_include_quantiles_left_right_seperately.py` - BADS optimization fitting 3 parameters:
+  - `rate_scaling_right`: Scaling factor for right firing rate (bounds: 0.01-3)
+  - `rate_scaling_left`: Scaling factor for left firing rate (bounds: 0.01-3)
+  - `theta_increment`: Bound increment (bounds: 0-7, cast to integer)
+  - Uses hardcoded 10ms Poisson delay
+  - Objective: minimize squared error between DDM and Poisson RT quantiles + accuracy
+
+- `find_bound_incr_rate_scale_bads_include_quantiles_left_right_seperately_fit_delay.py` - Extended version fitting 4 parameters:
+  - Same 3 parameters as above, PLUS:
+  - `poisson_delay`: Non-decision time added to Poisson RTs (hard bounds: 0-30ms, plausible: 5-15ms)
+  - Delay is now fitted instead of hardcoded
+
+### Analysis Scripts
+- `analyse_bads_rate_left_right_seperate_bound_optim_quantiles.py` - Analysis for 3-parameter optimization:
+  - Loads optimization results from pkl files
+  - Summary tables and 3-panel/6-panel plots
+  - Validation: simulates DDM and Poisson with optimized parameters
+  - Generates RT quantile, psychometric, and RT distribution plots
+  - MSE vs NDT sweep to find optimal delay post-hoc
+
+- `analyse_bads_rate_left_right_seperate_bound_optim_quantiles_fit_delay.py` - Analysis for 4-parameter optimization (with fitted delay):
+  - Same analysis as above but uses fitted delay
+  - 4-panel summary plot (includes fitted delay vs theta)
+  - All validation plots show fitted delay value
+  - MSE vs NDT comparison to verify optimization found good minimum 
