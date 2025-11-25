@@ -516,104 +516,6 @@ def simulate_validation_data(original_theta):
     }
 
 
-def plot_validation_results(validation_data, timestamp):
-    """
-    Create validation plots from pre-generated data.
-    This is the cheap operation - can be run multiple times to adjust styling.
-    
-    Parameters:
-        validation_data: dict returned by simulate_validation_data()
-        timestamp: timestamp string for filename
-    """
-    # Extract data
-    ddm_quantiles_dict = validation_data['ddm_quantiles_dict']
-    ddm_acc_dict = validation_data['ddm_acc_dict']
-    poisson_quantiles_dict = validation_data['poisson_quantiles_dict']
-    poisson_acc_dict = validation_data['poisson_acc_dict']
-    rate_scaling_right_opt = validation_data['rate_scaling_right_opt']
-    rate_scaling_left_opt = validation_data['rate_scaling_left_opt']
-    theta_poisson_opt = validation_data['theta_poisson_opt']
-    original_theta = validation_data['original_theta']
-    
-    # Plotting style configuration
-    ABL_color_map = {20: '#2E86AB', 40: '#A23B72', 60: '#F18F01'}
-    quantile_labels = ['Q10', 'Q30', 'Q50', 'Q70', 'Q90']
-    
-    # ===== QUANTILE PLOTS (1x3) =====
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    # NOTE: just to test effect of delay. 
-    NDT = 0
-    for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
-        ax = axes[ax_idx]
-        
-        for q_idx in range(5):
-            # DDM quantiles
-            ddm_q_values = [ddm_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
-            # Poisson quantiles
-            poisson_q_values = [poisson_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
-            print(f'ABL = {ABL}, Quantile={quantile_labels[q_idx]}')
-            print(f'ddm - poisson = {np.array(ddm_q_values) - np.array(poisson_q_values)}')
-            # Plot with different line styles for different quantiles
-            alpha_val = 0.5 + (q_idx * 0.1)
-            ax.plot(VALIDATION_ILD_RANGE, np.array(ddm_q_values), marker='o', markersize=6, 
-                   label=f'{quantile_labels[q_idx]}', color=ABL_color_map[ABL], 
-                   alpha=alpha_val, linewidth=1.5)
-            ax.plot(VALIDATION_ILD_RANGE, np.array(poisson_q_values) + NDT, marker='x', markersize=8, 
-                   linestyle='--', color=ABL_color_map[ABL], alpha=alpha_val, linewidth=1.5)
-        
-        ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
-        ax.set_ylabel('RT (s)', fontsize=12, fontweight='bold')
-        ax.set_title(f'ABL = {ABL}', fontsize=13, fontweight='bold')
-        ax.grid(True, alpha=0.3, linestyle='--')
-        # ax.legend(fontsize=9, loc='best')
-        # ax.set_xscale('log')
-        ax.set_xticks(VALIDATION_ILD_RANGE)
-        ax.set_xticklabels(VALIDATION_ILD_RANGE)
-    
-    fig.suptitle(
-        f'RT Quantiles: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
-        f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson)', 
-        fontsize=14, fontweight='bold', y=1.02)
-    plt.tight_layout()
-    plt.savefig(f'validation_quantiles_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
-    print(f"\n✓ Quantile plot saved: validation_quantiles_theta_{original_theta}_{timestamp}.png")
-    plt.show()
-    
-    # ===== PSYCHOMETRIC PLOTS (1x3) =====
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    
-    for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
-        ax = axes[ax_idx]
-        
-        # DDM accuracy
-        ddm_acc_values = [ddm_acc_dict[(ABL, ILD)] for ILD in VALIDATION_ILD_RANGE]
-        # Poisson accuracy
-        poisson_acc_values = [poisson_acc_dict[(ABL, ILD)] for ILD in VALIDATION_ILD_RANGE]
-        
-        ax.plot(VALIDATION_ILD_RANGE, ddm_acc_values, marker='o', markersize=10, 
-               label='DDM', color=ABL_color_map[ABL], linewidth=2.5)
-        ax.plot(VALIDATION_ILD_RANGE, poisson_acc_values, marker='x', markersize=12, 
-               linestyle='--', label='Poisson', color=ABL_color_map[ABL], linewidth=2.5)
-        
-        ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
-        ax.set_ylabel('P(Right)', fontsize=12, fontweight='bold')
-        ax.set_title(f'ABL = {ABL}', fontsize=13, fontweight='bold')
-        ax.grid(True, alpha=0.3, linestyle='--')
-        ax.legend(fontsize=11, loc='best')
-        ax.set_ylim([0.45, 1.05])
-        # ax.set_xscale('log')
-        ax.set_xticks(VALIDATION_ILD_RANGE)
-        ax.set_xticklabels(VALIDATION_ILD_RANGE)
-    
-    fig.suptitle(
-        f'Psychometric Functions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
-        f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson)', 
-        fontsize=14, fontweight='bold', y=1.02)
-    plt.tight_layout()
-    plt.savefig(f'validation_psychometric_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
-    print(f"✓ Psychometric plot saved: validation_psychometric_theta_{original_theta}_{timestamp}.png")
-    plt.show()
-
 
 # %%
 # Run validation analysis for a selected theta
@@ -623,90 +525,213 @@ print(f"\nRunning validation analysis for original_theta = {selected_theta}...")
 # Step 1: Generate data (expensive - run once)
 validation_data = simulate_validation_data(selected_theta)
 #%%
-# Step 2: Create plots (cheap - can rerun to adjust styling)
-plot_validation_results(validation_data, timestamp)
+# plot_quantiles, psychometric
+ddm_quantiles_dict = validation_data['ddm_quantiles_dict']
+ddm_acc_dict = validation_data['ddm_acc_dict']
+poisson_quantiles_dict = validation_data['poisson_quantiles_dict']
+poisson_acc_dict = validation_data['poisson_acc_dict']
+rate_scaling_right_opt = validation_data['rate_scaling_right_opt']
+rate_scaling_left_opt = validation_data['rate_scaling_left_opt']
+theta_poisson_opt = validation_data['theta_poisson_opt']
+original_theta = validation_data['original_theta']
+
+# Plotting style configuration
+ABL_color_map = {20: '#2E86AB', 40: '#A23B72', 60: '#F18F01'}
+quantile_labels = ['Q10', 'Q30', 'Q50', 'Q70', 'Q90']
+
+# ===== QUANTILE PLOTS (1x3) =====
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+# NOTE: just to test effect of delay. 
+NDT = 20*1e-3
+for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
+    ax = axes[ax_idx]
+    
+    for q_idx in range(5):
+        # DDM quantiles
+        ddm_q_values = [ddm_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
+        # Poisson quantiles
+        poisson_q_values = [poisson_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
+        # Plot with different line styles for different quantiles
+        alpha_val = 0.5 + (q_idx * 0.1)
+        ax.plot(VALIDATION_ILD_RANGE, np.array(ddm_q_values), marker='o', markersize=6, 
+                label=f'{quantile_labels[q_idx]}', color=ABL_color_map[ABL], 
+                alpha=alpha_val, linewidth=1.5)
+        ax.plot(VALIDATION_ILD_RANGE, np.array(poisson_q_values) + NDT, marker='x', markersize=8, 
+                linestyle='--', color=ABL_color_map[ABL], alpha=alpha_val, linewidth=1.5)
+    
+    ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
+    ax.set_ylabel('RT (s)', fontsize=12, fontweight='bold')
+    ax.set_title(f'ABL = {ABL}', fontsize=13, fontweight='bold')
+    ax.grid(True, alpha=0.3, linestyle='--')
+    # ax.legend(fontsize=9, loc='best')
+    # ax.set_xscale('log')
+    ax.set_xticks(VALIDATION_ILD_RANGE)
+    ax.set_xticklabels(VALIDATION_ILD_RANGE)
+
+fig.suptitle(
+    f'RT Quantiles: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
+    f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson). NDT_Poisson={NDT}', 
+    fontsize=14, fontweight='bold', y=1.02)
+plt.tight_layout()
+plt.savefig(f'validation_quantiles_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
+print(f"\n✓ Quantile plot saved: validation_quantiles_theta_{original_theta}_{timestamp}.png")
+plt.show()
+
+# ===== PSYCHOMETRIC PLOTS (1x3) =====
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
+    ax = axes[ax_idx]
+    
+    # DDM accuracy
+    ddm_acc_values = [ddm_acc_dict[(ABL, ILD)] for ILD in VALIDATION_ILD_RANGE]
+    # Poisson accuracy
+    poisson_acc_values = [poisson_acc_dict[(ABL, ILD)] for ILD in VALIDATION_ILD_RANGE]
+    
+    ax.plot(VALIDATION_ILD_RANGE, ddm_acc_values, marker='o', markersize=10, 
+            label='DDM', color=ABL_color_map[ABL], linewidth=2.5)
+    ax.plot(VALIDATION_ILD_RANGE, poisson_acc_values, marker='x', markersize=12, 
+            linestyle='--', label='Poisson', color=ABL_color_map[ABL], linewidth=2.5)
+    
+    ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
+    ax.set_ylabel('P(Right)', fontsize=12, fontweight='bold')
+    ax.set_title(f'ABL = {ABL}', fontsize=13, fontweight='bold')
+    ax.grid(True, alpha=0.3, linestyle='--')
+    ax.legend(fontsize=11, loc='best')
+    ax.set_ylim([0.45, 1.05])
+    # ax.set_xscale('log')
+    ax.set_xticks(VALIDATION_ILD_RANGE)
+    ax.set_xticklabels(VALIDATION_ILD_RANGE)
+
+fig.suptitle(
+    f'Psychometric Functions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
+    f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson)', 
+    fontsize=14, fontweight='bold', y=1.02)
+plt.tight_layout()
+plt.savefig(f'validation_psychometric_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
+print(f"✓ Psychometric plot saved: validation_psychometric_theta_{original_theta}_{timestamp}.png")
+plt.show()
+
 
 # %%
-def plot_rt_distributions(validation_data, timestamp):
-    """
-    Plot RT distributions for all ABL×ILD combinations (3×5 grid).
-    Shows both DDM and Poisson distributions overlaid.
-    
-    Parameters:
-        validation_data: dict returned by simulate_validation_data()
-        timestamp: timestamp string for filename
-    """
-    # Extract data
-    ddm_rts_dict = validation_data['ddm_rts_dict']
-    poisson_rts_dict = validation_data['poisson_rts_dict']
-    ddm_acc_dict = validation_data['ddm_acc_dict']
-    poisson_acc_dict = validation_data['poisson_acc_dict']
-    rate_scaling_right_opt = validation_data['rate_scaling_right_opt']
-    rate_scaling_left_opt = validation_data['rate_scaling_left_opt']
-    theta_poisson_opt = validation_data['theta_poisson_opt']
-    original_theta = validation_data['original_theta']
-    
-    # Create 3×5 subplot grid
-    fig, axes = plt.subplots(3, 5, figsize=(20, 12))
-    
-    for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
-        for col_idx, ILD in enumerate(VALIDATION_ILD_RANGE):
-            ax = axes[row_idx, col_idx]
-            
-            # Get RT data for this stimulus
-            ddm_rts = ddm_rts_dict[(ABL, ILD)]
-            poisson_rts = poisson_rts_dict[(ABL, ILD)]
-            
-            # Filter out NaNs
-            ddm_rts_valid = ddm_rts[~np.isnan(ddm_rts)]
-            poisson_rts_valid = poisson_rts[~np.isnan(poisson_rts)]
-            
-            # Determine bin edges (use same bins for both)
-            # max_rt = max(np.max(ddm_rts_valid) if len(ddm_rts_valid) > 0 else 1,
-            #             np.max(poisson_rts_valid) if len(poisson_rts_valid) > 0 else 1)
-            # bins = np.linspace(0, min(max_rt, 2), 50)  # Cap at 2s for visibility
-            bins = np.arange(0,2,0.01)
-            # Plot histograms
-            ax.hist(ddm_rts_valid, bins=bins, label='DDM', 
-                   color='blue', density=True, histtype='step')
-            ax.hist(poisson_rts_valid, bins=bins, label='Poisson', 
-                   color='red', density=True, histtype='step')
-            
-            # Add title with stimulus info and accuracy
-            ddm_acc = ddm_acc_dict[(ABL, ILD)]
-            poisson_acc = poisson_acc_dict[(ABL, ILD)]
-            ax.set_title(f'ABL={ABL}, ILD={ILD}\nDDM acc={ddm_acc:.3f}, Poisson acc={poisson_acc:.3f}',
-                        fontsize=9)
-            
-            # Labels only on edges
-            if col_idx == 0:
-                ax.set_ylabel('Density', fontsize=9)
-            if row_idx == 2:
-                ax.set_xlabel('RT (s)', fontsize=9)
-            
-            # Legend only on first subplot
-            if row_idx == 0 and col_idx == 0:
-                ax.legend(fontsize=8, loc='upper right')
-            
-            # ax.grid(True, alpha=0.3, linestyle='--')
-            ax.tick_params(labelsize=8)
-            ax.set_xlim(0,0.8)
-            ax.set_ylim(0,15)
-    fig.suptitle(
-        f'RT Distributions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
-        f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n'
-        f'{len(ddm_rts_valid)} trials per stimulus',
-        fontsize=14,
-        fontweight='bold'
-    )
-    plt.tight_layout()
-    plt.savefig(f'validation_rt_distributions_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
-    print(f"\n✓ RT distributions plot saved: validation_rt_distributions_theta_{original_theta}_{timestamp}.png")
-    plt.show()
+# def plot_rt_distributions(validation_data, timestamp):
+"""
+Plot RT distributions for all ABL×ILD combinations (3×5 grid).
+Shows both DDM and Poisson distributions overlaid.
+
+Parameters:
+    validation_data: dict returned by simulate_validation_data()
+    timestamp: timestamp string for filename
+"""
+# Extract data
+NDT = 20*1e-3
+
+ddm_rts_dict = validation_data['ddm_rts_dict']
+poisson_rts_dict = validation_data['poisson_rts_dict']
+ddm_acc_dict = validation_data['ddm_acc_dict']
+poisson_acc_dict = validation_data['poisson_acc_dict']
+rate_scaling_right_opt = validation_data['rate_scaling_right_opt']
+rate_scaling_left_opt = validation_data['rate_scaling_left_opt']
+theta_poisson_opt = validation_data['theta_poisson_opt']
+original_theta = validation_data['original_theta']
+
+# Create 3×5 subplot grid
+fig, axes = plt.subplots(3, 5, figsize=(20, 12))
+
+for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
+    for col_idx, ILD in enumerate(VALIDATION_ILD_RANGE):
+        ax = axes[row_idx, col_idx]
+        
+        # Get RT data for this stimulus
+        ddm_rts = ddm_rts_dict[(ABL, ILD)]
+        poisson_rts = poisson_rts_dict[(ABL, ILD)]
+        
+        # Filter out NaNs
+        ddm_rts_valid = ddm_rts[~np.isnan(ddm_rts)]
+        poisson_rts_valid = poisson_rts[~np.isnan(poisson_rts)]
+
+        # Add delay to poisson rts
+        poisson_rts_valid += NDT
+        
+        # Determine bin edges (use same bins for both)
+        # max_rt = max(np.max(ddm_rts_valid) if len(ddm_rts_valid) > 0 else 1,
+        #             np.max(poisson_rts_valid) if len(poisson_rts_valid) > 0 else 1)
+        # bins = np.linspace(0, min(max_rt, 2), 50)  # Cap at 2s for visibility
+        bins = np.arange(0,2,0.01)
+        # Plot histograms
+        ax.hist(ddm_rts_valid, bins=bins, label='DDM', 
+                color='blue', density=True, histtype='step')
+        ax.hist(poisson_rts_valid, bins=bins, label='Poisson', 
+                color='red', density=True, histtype='step')
+        
+        # Add title with stimulus info and accuracy
+        ddm_acc = ddm_acc_dict[(ABL, ILD)]
+        poisson_acc = poisson_acc_dict[(ABL, ILD)]
+        ax.set_title(f'ABL={ABL}, ILD={ILD}\nDDM acc={ddm_acc:.3f}, Poisson acc={poisson_acc:.3f}',
+                    fontsize=9)
+        
+        # Labels only on edges
+        if col_idx == 0:
+            ax.set_ylabel('Density', fontsize=9)
+        if row_idx == 2:
+            ax.set_xlabel('RT (s)', fontsize=9)
+        
+        # Legend only on first subplot
+        if row_idx == 0 and col_idx == 0:
+            ax.legend(fontsize=8, loc='upper right')
+        
+        # ax.grid(True, alpha=0.3, linestyle='--')
+        ax.tick_params(labelsize=8)
+        ax.set_xlim(0,0.8)
+        ax.set_ylim(0,15)
+fig.suptitle(
+    f'RT Distributions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
+    f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n'
+    f'{len(ddm_rts_valid)} trials per stimulus. DELAY_poisson={NDT}',
+    fontsize=14,
+    fontweight='bold'
+)
+plt.tight_layout()
+plt.savefig(f'validation_rt_distributions_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
+print(f"\n✓ RT distributions plot saved: validation_rt_distributions_theta_{original_theta}_{timestamp}.png")
+plt.show()
 
 
 # %%
 # Plot RT distributions (3×5 grid)
-plot_rt_distributions(validation_data, timestamp)
+# plot_rt_distributions(validation_data, timestamp)
 # %%
-# check delta E
+# Does adding NDT improve MSE
+NDT_arr = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50])*1e-3
+mse_err = np.zeros(len(NDT_arr))
+for n_idx, NDT in enumerate(NDT_arr):
+    print(f'NDT = {NDT}')
+    for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
+        for col_idx, ILD in enumerate(VALIDATION_ILD_RANGE):
+            
+            
+            # Get RT data for this stimulus
+            ddm_rts = ddm_rts_dict[(ABL, ILD)]
+            poisson_rts = poisson_rts_dict[(ABL, ILD)]
+        
+            # Filter out NaNs
+            ddm_rts_valid = ddm_rts[~np.isnan(ddm_rts)]
+            poisson_rts_valid = poisson_rts[~np.isnan(poisson_rts)]
+
+            # Add delay to poisson rts
+            poisson_rts_valid += NDT
+        
+            bins = np.arange(0,2,0.01)
+
+            poisson_hist, _ = np.histogram(poisson_rts_valid, bins=bins, density=True)
+            ddm_hist, _ = np.histogram(ddm_rts_valid, bins=bins, density=True)
+
+            mse_err[n_idx] += np.sum((poisson_hist - ddm_hist)**2)        
+# %%
+mse_err
+# %%
+plt.plot(1000*NDT_arr, mse_err/1000,'-o')
+plt.xlabel('NDT (ms)')
+plt.ylabel('Sq. Err')
+plt.title('SE vs NDT')
+plt.show()

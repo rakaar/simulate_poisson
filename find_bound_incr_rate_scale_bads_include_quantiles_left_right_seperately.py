@@ -224,6 +224,11 @@ def run_poisson_simulations_get_all(Nr0_scaled_right, Nr0_scaled_left, theta_poi
     
     poisson_array = np.array(poisson_data)
     rts = poisson_array[:, 0]
+    
+    # Add 10ms delay to all valid Poisson reaction times
+    POISSON_DELAY = 10*1e-3  # 10ms in seconds
+    rts = np.where(~np.isnan(rts), rts + POISSON_DELAY, rts)
+    
     choices = poisson_array[:, 1]
     bound_offsets = poisson_array[:, 2]
     
