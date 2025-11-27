@@ -480,16 +480,17 @@ original_theta = validation_data['original_theta']
 # Plotting style configuration
 ABL_color_map = {20: '#2E86AB', 40: '#A23B72', 60: '#F18F01'}
 quantile_labels = ['Q10', 'Q30', 'Q50', 'Q70', 'Q90']
+ABL_delay_map = {20: 0, 40: 0, 60: 0}
 
 # ===== QUANTILE PLOTS (1x3) =====
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+fig, axes = plt.subplots(1, 3, figsize=(18, 10))
 
 for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
     ax = axes[ax_idx]
     
     for q_idx in range(5):
         ddm_q_values = [ddm_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
-        poisson_q_values = [poisson_quantiles_dict[(ABL, ILD)][q_idx] for ILD in VALIDATION_ILD_RANGE]
+        poisson_q_values = [poisson_quantiles_dict[(ABL, ILD)][q_idx] + ABL_delay_map[ABL] for ILD in VALIDATION_ILD_RANGE]
         alpha_val = 0.5 + (q_idx * 0.1)
         ax.plot(VALIDATION_ILD_RANGE, np.array(ddm_q_values), marker='o', markersize=6, 
                 label=f'{quantile_labels[q_idx]}', color=ABL_color_map[ABL], 

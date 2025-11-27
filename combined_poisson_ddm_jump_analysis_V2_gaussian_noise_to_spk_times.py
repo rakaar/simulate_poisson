@@ -15,7 +15,7 @@ from scipy import stats
 # ===================================================================
 
 N_sim = 10  # Number of trials for jump distribution analysis
-N_sim_rtd = int(20e3)  # Number of trials for RTD (reaction time distribution)
+N_sim_rtd = int(10e3)  # Number of trials for RTD (reaction time distribution)
 
 # instead of N, c is hardcoded. 
 # N_right_and_left = 50
@@ -26,7 +26,7 @@ N_sim_rtd = int(20e3)  # Number of trials for RTD (reaction time distribution)
 # 
 # N_right_and_left = round(((corr_factor - 1)/c) + 1)
 N_right_and_left = int(100)
-c = 2/100
+c = 1e-5
 
 # corr_factor = 1 + (N_right_and_left - 1)*c
 corr_factor = 1

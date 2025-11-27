@@ -113,6 +113,19 @@ for original_theta in original_theta_values:
           f"{result['theta_increment_opt']:<12} "
           f"{result['theta_poisson_opt']:<15} "
           f"{result['final_objective_value']:<12.6f} ")
+##################################
+print('------------------------------------------------------')
+result['rate_scaling_right_opt'] = 1.2
+result['rate_scaling_left_opt'] = 1.2
+result['theta_increment_opt'] = 0
+result['theta_poisson_opt'] = 2
+print(f'{result['rate_scaling_right_opt']}')
+print(f'{result['rate_scaling_left_opt']}')
+print(f'{result['theta_increment_opt']}')
+print(f'{result['theta_poisson_opt']}')
+print('------------------------------------------------------')
+##################################
+
 
 # %%
 # Create 3-panel plot based on summary table
@@ -317,10 +330,6 @@ def compute_quantiles_from_rt_data(rt_data, quantiles=[0.1, 0.3, 0.5, 0.7, 0.9])
     Compute quantiles from RT data, filtering out NaN values.
     """
     valid_rts = rt_data[~np.isnan(rt_data)]
-    
-    if len(valid_rts) == 0:
-        return np.array([np.nan] * len(quantiles))
-    
     return np.quantile(valid_rts, quantiles)
 
 
@@ -384,7 +393,7 @@ def simulate_poisson_for_stimulus(ABL, ILD, Nr0_scaled_right, Nr0_scaled_left, t
         accuracy: Proportion of correct (right) choices
         rts: Raw RT data (for distribution plotting)
     """
-    # Calculate rates with separate left/right scaling
+    # Calculate rates with separate quantileleft/right scaling
     r0_right = Nr0_scaled_right / N
     r0_left = Nr0_scaled_left / N
     r_db = (2*ABL + ILD)/2
@@ -540,9 +549,13 @@ ABL_color_map = {20: '#2E86AB', 40: '#A23B72', 60: '#F18F01'}
 quantile_labels = ['Q10', 'Q30', 'Q50', 'Q70', 'Q90']
 
 # ===== QUANTILE PLOTS (1x3) =====
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+fig, axes = plt.subplots(1, 3, figsize=(18, 10))
 # NOTE: just to test effect of delay. 
-NDT = 20*1e-3
+# NDT = 0*1e-3
+NDT_ABL_map = {20: 20e-3, 40: 15e-3, 60: 10e-3}
+# NDT_ILD_map = {1: 0, 2: 5e-3, 4: 8e-3, 8: 10e-3, 16: 6e-3}
+
+
 for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
     ax = axes[ax_idx]
     
@@ -556,7 +569,7 @@ for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
         ax.plot(VALIDATION_ILD_RANGE, np.array(ddm_q_values), marker='o', markersize=6, 
                 label=f'{quantile_labels[q_idx]}', color=ABL_color_map[ABL], 
                 alpha=alpha_val, linewidth=1.5)
-        ax.plot(VALIDATION_ILD_RANGE, np.array(poisson_q_values) + NDT, marker='x', markersize=8, 
+        ax.plot(VALIDATION_ILD_RANGE, np.array(poisson_q_values) + NDT_ABL_map[ABL], marker='x', markersize=8, 
                 linestyle='--', color=ABL_color_map[ABL], alpha=alpha_val, linewidth=1.5)
     
     ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
@@ -570,7 +583,7 @@ for ax_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
 
 fig.suptitle(
     f'RT Quantiles: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
-    f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson). NDT_Poisson={NDT}', 
+    f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n(dots=DDM, x=Poisson). NDT_Poisson={NDT_ABL_map.values()}', 
     fontsize=14, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(f'validation_quantiles_theta_{original_theta}_{timestamp}.png', dpi=150, bbox_inches='tight')
@@ -624,7 +637,10 @@ Parameters:
     timestamp: timestamp string for filename
 """
 # Extract data
-NDT = 20*1e-3
+# NDT = 20*1e-3
+NDT_ABL_map = {20: 20e-3, 40: 15e-3, 60: 10e-3}
+# NDT_ILD_map = {1: 0, 2: 5e-3, 4: 8e-3, 8: 10e-3, 16: 6e-3}
+
 
 ddm_rts_dict = validation_data['ddm_rts_dict']
 poisson_rts_dict = validation_data['poisson_rts_dict']
@@ -636,7 +652,7 @@ theta_poisson_opt = validation_data['theta_poisson_opt']
 original_theta = validation_data['original_theta']
 
 # Create 3×5 subplot grid
-fig, axes = plt.subplots(3, 5, figsize=(20, 12))
+fig, axes = plt.subplots(3, 5, figsize=(25, 16))
 
 for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
     for col_idx, ILD in enumerate(VALIDATION_ILD_RANGE):
@@ -651,13 +667,15 @@ for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
         poisson_rts_valid = poisson_rts[~np.isnan(poisson_rts)]
 
         # Add delay to poisson rts
-        poisson_rts_valid += NDT
+        # poisson_rts_valid += NDT_ILD_map[ILD]
+        poisson_rts_valid += NDT_ABL_map[ABL]
+
         
         # Determine bin edges (use same bins for both)
         # max_rt = max(np.max(ddm_rts_valid) if len(ddm_rts_valid) > 0 else 1,
         #             np.max(poisson_rts_valid) if len(poisson_rts_valid) > 0 else 1)
         # bins = np.linspace(0, min(max_rt, 2), 50)  # Cap at 2s for visibility
-        bins = np.arange(0,2,0.01)
+        bins = np.arange(0,2,0.005)
         # Plot histograms
         ax.hist(ddm_rts_valid, bins=bins, label='DDM', 
                 color='blue', density=True, histtype='step')
@@ -683,11 +701,11 @@ for row_idx, ABL in enumerate(VALIDATION_ABL_RANGE):
         # ax.grid(True, alpha=0.3, linestyle='--')
         ax.tick_params(labelsize=8)
         ax.set_xlim(0,0.8)
-        ax.set_ylim(0,15)
+        ax.set_ylim(0,17)
 fig.suptitle(
     f'RT Distributions: θ_DDM={original_theta}, θ_Poisson={theta_poisson_opt}, '
     f'RateR×{rate_scaling_right_opt:.2f}, RateL×{rate_scaling_left_opt:.2f}\n'
-    f'{len(ddm_rts_valid)} trials per stimulus. DELAY_poisson={NDT}',
+    f'{len(ddm_rts_valid)} trials per stimulus. DELAY_poisson={NDT_ABL_map.values()}',
     fontsize=14,
     fontweight='bold'
 )
@@ -735,3 +753,32 @@ plt.xlabel('NDT (ms)')
 plt.ylabel('Sq. Err')
 plt.title('SE vs NDT')
 plt.show()
+
+# %%
+# check why RTD and quantiles mis-match
+ABL_test = 20
+ILD_test = 16
+delay_test = NDT_ABL_map[ABL_test]
+
+ddm_rts = ddm_rts_dict[(ABL_test, ILD_test)]
+poisson_rts = np.array(poisson_rts_dict[(ABL_test, ILD_test)]) + delay_test
+
+bins = np.arange(0,2,0.005)
+
+quantiles = [0.1, 0.3, 0.5, 0.7, 0.9]
+ddm_q = np.quantile(ddm_rts, quantiles)
+poisson_q = np.quantile(poisson_rts, quantiles)
+
+plt.figure(figsize=(20,8))
+plt.hist(ddm_rts, bins=bins,density=True,histtype='step',label='ddm', color='b')
+plt.hist(poisson_rts, bins=bins, density=True, histtype='step', label='poisson', color='r')
+for i in range(5):
+    plt.axvline(ddm_q[i], color='b', alpha=0.5)
+    plt.axvline(poisson_q[i], color='r', alpha=0.5)
+plt.legend()
+plt.xlim(0,1)
+plt.title(f'ABL={ABL_test}, ILD = {ILD_test}')
+plt.xlabel('rts')
+
+
+        

@@ -38,8 +38,8 @@ lam = 1.3
 l = 0.9
 Nr0_base = 13.3  # Base Nr0 before multiplication
 dt = 1e-6  # Time step for continuous DDM simulation
-rho = 1e-3
-N = 100  # Fixed number of neurons
+rho = 1e-4
+N = 10  # Fixed number of neurons
 
 # Stimuli to test
 ABL_range = [20,40, 60]
@@ -54,7 +54,7 @@ N_sim_ddm_quantiles = int(10e3)
 # Number of trials for Poisson quantile estimation in objective function
 N_sim_poisson_quantiles = int(10e3)
 
-# Original theta values to iterate over
+# Original theta values to iterate overz
 original_theta_values = [2]
 
 print("="*70)

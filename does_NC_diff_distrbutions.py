@@ -23,16 +23,16 @@ dB = 1e-3
 
 
 # %%
-N_sim = int(50e3)
+N_sim = int(10e3)
 
 
 theta = 2
 N_rho_ratex_bound_plus_quads = [
-    (100, 1e-3, 1, 0),
-    (100, 1e-2, 1.55, 1),
-    (100, 2/100, 2.95, 3)
+    (100, 1e-5, 1, 0),
+    (10, 1e-4, 1, 0)   
 ]
 poisson_sim_data_NC_wise = {}
+timing_results = []
 for nc_idx, ncxb in enumerate(N_rho_ratex_bound_plus_quads):
     N, rho, rate_scaling_factor, bound_increment = ncxb
     poisson_sim_data_NC_wise[nc_idx] = {}
@@ -51,8 +51,18 @@ for nc_idx, ncxb in enumerate(N_rho_ratex_bound_plus_quads):
     r_right = r0 * rr
     r_left = r0 * rl
 
+    start_time = time.time()
     poisson_data = Parallel(n_jobs=multiprocessing.cpu_count()-2)(delayed(run_poisson_trial)(N, rho, r_right, r_left, new_theta) for _ in tqdm(range(N_sim)))
+    elapsed_time = time.time() - start_time
+    timing_results.append((ncxb, elapsed_time))
     poisson_sim_data_NC_wise[ncxb] = poisson_data
+
+# Save timing results to txt file
+with open('NC_diff_timing.txt', 'w') as f:
+    f.write(f'Timing results for N_sim={N_sim}\n')
+    f.write('=' * 50 + '\n')
+    for ncxb, elapsed in timing_results:
+        f.write(f'N={ncxb[0]}, rho={ncxb[1]}, rate_scale={ncxb[2]}, bound_inc={ncxb[3]}: {elapsed:.2f}s\n')
 
 # %%
 # ddm data
@@ -118,3 +128,4 @@ plt.xlabel('RT')
 plt.ylabel('density')
 plt.title(f'N x rho = varies,abl={abl},ild={ild}')
 plt.xlim(0,1)
+plt.savefig('NC_diff_distributions.png', dpi=150, bbox_inches='tight')

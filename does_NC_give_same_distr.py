@@ -31,7 +31,7 @@ N_sim = int(50e3)
 theta = 2 + theta_increment
 # NC_pairs = [(int(5/1e-3), 1e-3), (int(5/2e-3), 2e-3), (int(5/1e-2), 1e-2), (int(5/0.1), 0.1)]
 # NC_pairs = [(1000, 1e-3), (int(2/1e-2), 1e-2), (int(3/2e-3), 2e-3), (int(5/0.1), 0.1)]
-NC_pairs = [(100, 0.1), (100, 0.01), (100, 0.001)]
+NC_pairs = [(100, 1e-5), (10, 1e-4)]
 poisson_sim_data_NC_wise = {}
 for nc_idx, nc_pair in enumerate(NC_pairs):
     N, rho = nc_pair
