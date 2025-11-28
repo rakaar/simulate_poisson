@@ -85,8 +85,10 @@ timestamp = saved_data['timestamp']
 lam = fixed_params['lam']
 l = fixed_params['l']
 Nr0_base = fixed_params['Nr0_base']
-N = fixed_params['N']
-rho = fixed_params['rho']
+# N = fixed_params['N']
+# rho = fixed_params['rho']
+N = 10
+rho = 1e-3
 dt = fixed_params['dt']
 ABL_range = fixed_params['ABL_range']
 ILD_range = fixed_params['ILD_range']
@@ -115,10 +117,10 @@ for original_theta in original_theta_values:
           f"{result['final_objective_value']:<12.6f} ")
 ##################################
 print('------------------------------------------------------')
-result['rate_scaling_right_opt'] = 1.2
-result['rate_scaling_left_opt'] = 1.2
-result['theta_increment_opt'] = 0
-result['theta_poisson_opt'] = 2
+result['rate_scaling_right_opt'] = 2.1
+result['rate_scaling_left_opt'] = 2.1
+result['theta_increment_opt'] = 1
+result['theta_poisson_opt'] = 3
 print(f'{result['rate_scaling_right_opt']}')
 print(f'{result['rate_scaling_left_opt']}')
 print(f'{result['theta_increment_opt']}')
