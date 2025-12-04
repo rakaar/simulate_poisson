@@ -25,8 +25,8 @@ N_sim_rtd = int(10e3)  # Number of trials for RTD (reaction time distribution)
 ########################################
 # 
 # N_right_and_left = round(((corr_factor - 1)/c) + 1)
-N_right_and_left = int(100)
-c = 1e-5
+N_right_and_left = int(1000)
+c = 1e-2
 
 # corr_factor = 1 + (N_right_and_left - 1)*c
 corr_factor = 1
@@ -36,14 +36,14 @@ N_left = N_right_and_left
 if N_right_and_left < 1:
     raise ValueError("N_right_and_left must be greater than 1")
 
-theta_increment = 3
+theta_increment = 18
 theta = 2 + theta_increment
 theta_scaled = theta * corr_factor
 
 # random animal's params
 lam = 1.3
 l = 0.9
-rate_scaling_factor = 2.95
+rate_scaling_factor = 1
 Nr0 = 13.3 * rate_scaling_factor
 # Nr0 = 100
 exponential_noise_to_spk_time = 0 # Scale parameter in seconds
@@ -396,6 +396,10 @@ ax1.legend(loc='upper right')
 ax1.grid(axis='y', alpha=0.3)
 ax1.set_xlim(0, 1)
 
+print(f'poisson up = {poisson_frac_up}')
+print(f'poisson down = {poisson_frac_down}')
+print(f'ddm up = {ddm_frac_up}')
+print(f'ddm down = {ddm_frac_down}')
 # --- BOTTOM PLOT: Evidence Jump Distribution (Time-binned) ---
 ax2 = axes[1]
 

@@ -20,8 +20,8 @@ def poisson_fc_dt_scaled(N, rho, theta, r_right, r_left, dt):
 
 # %%
 # poisson params
-N = 10
-rho = 1e-3  
+N = 1001
+rho = 1e-2
 # %%
 # DDM data
 # TIED
@@ -30,7 +30,7 @@ l = 0.9
 Nr0_base = 13.3  # Base Nr0 before multiplication
 
 abl = 20
-ild_range = [1,2,4]
+ild_range = [1,2,4,8,16]
 dt = 1e-6  # Time step for continuous DDM simulation
 dB = 1e-3
 
@@ -41,9 +41,9 @@ for ild in ild_range:
     ddm_data_dict[ild] = (ddm_acc, ddm_mean_rt)
 
 # %%
-theta_poisson = 3
-rate_scalars_left = [1, 1.1, 1.3, 1.5, 1.7, 1.9, 2.1]
-rate_scalars_right = [1, 1.1, 1.3, 1.5, 1.7, 1.9, 2.1]
+theta_poisson = 20
+rate_scalars_left = [11.7, 11.9, 12.1, 12.3, 12.5, 12.7]
+rate_scalars_right = [11.7, 11.9, 12.1, 12.3, 12.5, 12.7]
 poisson_data_dict = {}
 N_sim_poisson = int(10e3)
 for rate_scalar_left in rate_scalars_left:
@@ -120,6 +120,10 @@ plt.ylabel('Rate Scalar Right')
 plt.xticks(range(len(rate_scalars_left)), rate_scalars_left)
 plt.yticks(range(len(rate_scalars_right)), rate_scalars_right)
 plt.colorbar()
+# Add text annotations
+for i in range(len(rate_scalars_right)):
+    for j in range(len(rate_scalars_left)):
+        plt.text(j, i, f'{acc_ddm_minus_poisson[i, j]:.2f}', ha='center', va='center', color='white', fontsize=16)
 # Mark minimum with "x"
 plt.plot(min_idx_acc[1], min_idx_acc[0], 'rx', markersize=15, markeredgewidth=3)
 
@@ -132,6 +136,10 @@ plt.ylabel('Rate Scalar Right')
 plt.xticks(range(len(rate_scalars_left)), rate_scalars_left)
 plt.yticks(range(len(rate_scalars_right)), rate_scalars_right)
 plt.colorbar()
+# Add text annotations
+for i in range(len(rate_scalars_right)):
+    for j in range(len(rate_scalars_left)):
+        plt.text(j, i, f'{rt_ddm_minus_poisson[i, j]:.2f}', ha='center', va='center', color='white', fontsize=16)
 # Mark minimum with "x"
 plt.plot(min_idx_rt[1], min_idx_rt[0], 'rx', markersize=15, markeredgewidth=3)
 
@@ -139,3 +147,81 @@ plt.tight_layout()
 plt.show()
 
 
+# %%
+# Plot accuracy comparison with optimal rate scalars for ABL = 20, 40, 60
+ABL_range = [20, 40, 60]
+ABL_colors = {20: 'tab:blue', 40: 'tab:orange', 60: 'tab:green'}
+
+# Use optimal rate scalars from accuracy heatmap
+opt_rate_right = acc_min_right
+opt_rate_left = acc_min_left
+
+# Compute DDM and Poisson accuracy for each ABL and ILD
+ddm_acc_validation = {}
+poisson_acc_validation = {}
+
+for abl_val in ABL_range:
+    for ild in ild_range:
+        # DDM accuracy
+        ddm_acc, _ = ddm_fc_dt(lam, l, Nr0_base, N, abl_val, ild, theta_ddm, dt)
+        ddm_acc_validation[(abl_val, ild)] = ddm_acc
+        
+        # Poisson accuracy with optimal rate scalars
+        r0 = Nr0_base / N
+        r_db = (2 * abl_val + ild) / 2
+        l_db = (2 * abl_val - ild) / 2
+        pr = 10 ** (r_db / 20)
+        pl = 10 ** (l_db / 20)
+        
+        den = (pr ** (lam * l)) + (pl ** (lam * l))
+        rr = (pr ** lam) / den
+        rl = (pl ** lam) / den
+        
+        r_right = r0 * rr * opt_rate_right
+        r_left = r0 * rl * opt_rate_left
+        
+        # Compute effective theta via simulation
+        poisson_data = Parallel(n_jobs=multiprocessing.cpu_count()-2)(
+            delayed(run_poisson_trial)(N, rho, r_right, r_left, theta_poisson) 
+            for _ in tqdm(range(N_sim_poisson), desc=f'ABL={abl_val}, ILD={ild}')
+        )
+        bound_offsets = np.array([data[2] for data in poisson_data])
+        theta_poisson_eff = theta_poisson + np.mean(bound_offsets)
+        
+        try:
+            poisson_acc, _ = poisson_fc_dt_scaled(N, rho, theta_poisson_eff, r_right, r_left, dt)
+        except:
+            poisson_acc = np.nan
+        poisson_acc_validation[(abl_val, ild)] = poisson_acc
+
+# %%
+# Create 1x3 plot
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+for ax_idx, abl_val in enumerate(ABL_range):
+    ax = axes[ax_idx]
+    
+    ddm_acc_values = [ddm_acc_validation[(abl_val, ild)] for ild in ild_range]
+    poisson_acc_values = [poisson_acc_validation[(abl_val, ild)] for ild in ild_range]
+    
+    ax.plot(ild_range, ddm_acc_values, marker='o', markersize=10, 
+            label='DDM', color=ABL_colors[abl_val], linewidth=2.5)
+    ax.plot(ild_range, poisson_acc_values, marker='x', markersize=12, 
+            linestyle='--', label='Poisson', color=ABL_colors[abl_val], linewidth=2.5)
+    
+    ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
+    ax.set_ylabel('P(Right)', fontsize=12, fontweight='bold')
+    ax.set_title(f'ABL = {abl_val}', fontsize=13, fontweight='bold')
+    ax.grid(True, alpha=0.3, linestyle='--')
+    ax.legend(fontsize=11, loc='best')
+    ax.set_ylim([0.45, 1.05])
+    ax.set_xticks(ild_range)
+    ax.set_xticklabels(ild_range)
+
+fig.suptitle(f'Psychometric Functions: θ_DDM={theta_ddm}, θ_Poisson={theta_poisson}\n'
+             f'Rate Scalars: right={opt_rate_right}, left={opt_rate_left} (optimized at ABL=20)\n'
+             f'(circles=DDM, x=Poisson)', 
+             fontsize=14, fontweight='bold', y=1.05)
+plt.tight_layout()
+plt.show()
+# %%
