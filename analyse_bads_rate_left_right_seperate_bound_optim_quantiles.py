@@ -117,8 +117,8 @@ for original_theta in original_theta_values:
           f"{result['final_objective_value']:<12.6f} ")
 ##################################
 print('------------------------------------------------------')
-result['rate_scaling_right_opt'] = 12.3
-result['rate_scaling_left_opt'] = 12.7
+result['rate_scaling_right_opt'] = 13.5
+result['rate_scaling_left_opt'] = 13.9
 result['theta_increment_opt'] = 18
 result['theta_poisson_opt'] = 20
 print(f'{result['rate_scaling_right_opt']}')

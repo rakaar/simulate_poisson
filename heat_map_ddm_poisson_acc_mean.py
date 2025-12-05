@@ -21,7 +21,8 @@ def poisson_fc_dt_scaled(N, rho, theta, r_right, r_left, dt):
 # %%
 # poisson params
 N = 1001
-rho = 1e-2
+rho = 0.019
+# 0.01, 0.1
 # %%
 # DDM data
 # TIED
@@ -42,8 +43,8 @@ for ild in ild_range:
 
 # %%
 theta_poisson = 20
-rate_scalars_left = [11.7, 11.9, 12.1, 12.3, 12.5, 12.7]
-rate_scalars_right = [11.7, 11.9, 12.1, 12.3, 12.5, 12.7]
+rate_scalars_left = [ 13.3, 13.5, 13.7]
+rate_scalars_right = [13.3, 13.5, 13.7]
 poisson_data_dict = {}
 N_sim_poisson = int(10e3)
 for rate_scalar_left in rate_scalars_left:
@@ -156,15 +157,18 @@ ABL_colors = {20: 'tab:blue', 40: 'tab:orange', 60: 'tab:green'}
 opt_rate_right = acc_min_right
 opt_rate_left = acc_min_left
 
-# Compute DDM and Poisson accuracy for each ABL and ILD
+# Compute DDM and Poisson accuracy and RT for each ABL and ILD
 ddm_acc_validation = {}
 poisson_acc_validation = {}
-
+ddm_rt_validation = {}
+poisson_rt_validation = {}
+# ild_range = [1,2, 16, 32, 50]
 for abl_val in ABL_range:
     for ild in ild_range:
-        # DDM accuracy
-        ddm_acc, _ = ddm_fc_dt(lam, l, Nr0_base, N, abl_val, ild, theta_ddm, dt)
+        # DDM accuracy and RT
+        ddm_acc, ddm_rt = ddm_fc_dt(lam, l, Nr0_base, N, abl_val, ild, theta_ddm, dt)
         ddm_acc_validation[(abl_val, ild)] = ddm_acc
+        ddm_rt_validation[(abl_val, ild)] = ddm_rt
         
         # Poisson accuracy with optimal rate scalars
         r0 = Nr0_base / N
@@ -189,10 +193,11 @@ for abl_val in ABL_range:
         theta_poisson_eff = theta_poisson + np.mean(bound_offsets)
         
         try:
-            poisson_acc, _ = poisson_fc_dt_scaled(N, rho, theta_poisson_eff, r_right, r_left, dt)
+            poisson_acc, poisson_rt = poisson_fc_dt_scaled(N, rho, theta_poisson_eff, r_right, r_left, dt)
         except:
-            poisson_acc = np.nan
+            poisson_acc, poisson_rt = np.nan, np.nan
         poisson_acc_validation[(abl_val, ild)] = poisson_acc
+        poisson_rt_validation[(abl_val, ild)] = poisson_rt
 
 # %%
 # Create 1x3 plot
@@ -204,9 +209,9 @@ for ax_idx, abl_val in enumerate(ABL_range):
     ddm_acc_values = [ddm_acc_validation[(abl_val, ild)] for ild in ild_range]
     poisson_acc_values = [poisson_acc_validation[(abl_val, ild)] for ild in ild_range]
     
-    ax.plot(ild_range, ddm_acc_values, marker='o', markersize=10, 
+    ax.plot(ild_range, ddm_acc_values, marker='o', markersize=8, 
             label='DDM', color=ABL_colors[abl_val], linewidth=2.5)
-    ax.plot(ild_range, poisson_acc_values, marker='x', markersize=12, 
+    ax.plot(ild_range, poisson_acc_values, marker='x', markersize=8, 
             linestyle='--', label='Poisson', color=ABL_colors[abl_val], linewidth=2.5)
     
     ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
@@ -214,11 +219,40 @@ for ax_idx, abl_val in enumerate(ABL_range):
     ax.set_title(f'ABL = {abl_val}', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3, linestyle='--')
     ax.legend(fontsize=11, loc='best')
-    ax.set_ylim([0.45, 1.05])
+    ax.set_ylim([0.49, 1.01])
     ax.set_xticks(ild_range)
     ax.set_xticklabels(ild_range)
 
 fig.suptitle(f'Psychometric Functions: θ_DDM={theta_ddm}, θ_Poisson={theta_poisson}\n'
+             f'Rate Scalars: right={opt_rate_right}, left={opt_rate_left} (optimized at ABL=20)\n'
+             f'(circles=DDM, x=Poisson)', 
+             fontsize=14, fontweight='bold', y=1.05)
+plt.tight_layout()
+plt.show()
+# %%
+# Create 1x3 plot for Mean RT
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+for ax_idx, abl_val in enumerate(ABL_range):
+    ax = axes[ax_idx]
+    
+    ddm_rt_values = [ddm_rt_validation[(abl_val, ild)] for ild in ild_range]
+    poisson_rt_values = [poisson_rt_validation[(abl_val, ild)] for ild in ild_range]
+    
+    ax.plot(ild_range, ddm_rt_values, marker='o', markersize=10, 
+            label='DDM', color=ABL_colors[abl_val], linewidth=2.5)
+    ax.plot(ild_range, poisson_rt_values, marker='x', markersize=12, 
+            linestyle='--', label='Poisson', color=ABL_colors[abl_val], linewidth=2.5)
+    
+    ax.set_xlabel('ILD', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Mean RT', fontsize=12, fontweight='bold')
+    ax.set_title(f'ABL = {abl_val}', fontsize=13, fontweight='bold')
+    ax.grid(True, alpha=0.3, linestyle='--')
+    ax.legend(fontsize=11, loc='best')
+    ax.set_xticks(ild_range)
+    ax.set_xticklabels(ild_range)
+
+fig.suptitle(f'Chronometric Functions: θ_DDM={theta_ddm}, θ_Poisson={theta_poisson}\n'
              f'Rate Scalars: right={opt_rate_right}, left={opt_rate_left} (optimized at ABL=20)\n'
              f'(circles=DDM, x=Poisson)', 
              fontsize=14, fontweight='bold', y=1.05)

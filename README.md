@@ -182,6 +182,7 @@ Use .venv library
 ## Utils
 - corr_poisson_utils_subtractive.py: Poisson substractive generate utils
 - mgf_helper_utils.py: MGF utils for accuracy, mean RT
+- h0_vs_rho.py: Plot h0 (drift parameter from MGF) vs rho for fixed N at a given ILD
 
 ## Experiment with N, rho varying and mismatch btn DDM and poisson
 - poisson_ddm_mgf_n_rho_vary.py: DDM fix, Poisson vary - correlation, N
