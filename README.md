@@ -193,6 +193,14 @@ Use .venv library
   - Parameters: N_neurons, rho, theta, jitter values (ms), ILD values, N_trials
   - Saves results to timestamped pickle files and PNG plots
 
+- `test_poisson_logodds_theory.py` - **Test script to compare empirical vs theoretical Poisson log odds (no jitter).**
+  - Verifies that simulated Poisson log odds match theoretical predictions from `find_h0`
+  - Computes theoretical log odds as `-h0 × θ` using MGF-based `find_h0` function
+  - Computes empirical log odds from simulated choice probabilities
+  - Plots comparison and prints ratio between empirical and theoretical values
+  - Includes normalized comparison (by highest ILD) to isolate shape vs scaling differences
+  - Useful for debugging discrepancies between simulation and theory
+
 ## Experiment with N, rho varying and mismatch btn DDM and poisson
 - poisson_ddm_mgf_n_rho_vary.py: DDM fix, Poisson vary - correlation, N
 - poisson_ddm_mgf_rate_theta_vary.py: DDM fix, Poisson vary - rate

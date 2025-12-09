@@ -17,11 +17,11 @@ from mgf_helper_utils import find_h0
 # ===================================================================
 
 # Simulation parameters
-N_trials = int(30e3)  # Number of trials per condition
+N_trials = int(20e3)  # Number of trials per condition
 
 # Poisson model parameters (fixed)
 N_neurons = 1000  # Number of neurons in each pool (right and left)
-rho = 1e-4  # Correlation parameter
+rho = 1e-4 # Correlation parameter
 
 # DDM / psychometric parameters
 lam = 1.3
@@ -35,7 +35,7 @@ theta = 20  # Decision threshold
 ild_values = [1, 2, 4, 8, 16]
 
 # Jitter values to test (in seconds) - easily modifiable
-jitter_values_ms = [0]  # in milliseconds
+jitter_values_ms = [0, 1, 2.5, 5, 10, 25]  # in milliseconds
 jitter_values = [j * 1e-3 for j in jitter_values_ms]  # convert to seconds
 
 # Simulation duration
@@ -267,9 +267,19 @@ def generate_simulation_data(ild_values, jitter_values, N_trials, N_neurons, rho
 # 4. LOG ODDS CALCULATION
 # ===================================================================
 
-def calculate_log_odds(results, ild_values):
+def calculate_log_odds(results, ild_values, mode="n_trials_add"):
     """
     Calculate log odds from simulation results.
+    
+    Parameters:
+    -----------
+    results : dict
+        Simulation results dictionary
+    ild_values : list
+        List of ILD values
+    mode : str
+        "prob_den_add" - log(P_right / (P_left + 1e-50))
+        "n_trials_add" - add 1 to n_right and n_left before calculating (Laplace smoothing)
     
     Returns:
     --------
@@ -283,19 +293,28 @@ def calculate_log_odds(results, ild_values):
             data = ild_results[ild]
             n_right = data['n_right']
             n_left = data['n_left']
-            n_total = n_right + n_left
             
-            if n_total > 0:
-                P_right = n_right / n_total
-                P_left = n_left / n_total
-                # log(P_right / P_left) with small epsilon to avoid log(0)
-                # log_odd = np.log((P_right + 1e-50) / (P_left + 1e-50))
-                # log_odd = np.log((P_right - 1e-50) / (P_left + 1e-50))
-                log_odd = np.log((P_right) / (P_left + 1e-50))
-
-
+            if mode == "prob_den_add":
+                # Add epsilon to denominator probability
+                n_total = n_right + n_left
+                if n_total > 0:
+                    P_right = n_right / n_total
+                    P_left = n_left / n_total
+                    log_odd = np.log(P_right / (P_left + 1e-50))
+                else:
+                    log_odd = 0.0
+                    
+            elif mode == "n_trials_add":
+                # Laplace smoothing: add 1 trial to each side
+                n_right_adj = n_right + 1
+                n_left_adj = n_left + 1
+                n_total_adj = n_right_adj + n_left_adj
+                P_right = n_right_adj / n_total_adj
+                P_left = n_left_adj / n_total_adj
+                log_odd = np.log(P_right / P_left)
+            
             else:
-                log_odd = 0.0
+                raise ValueError(f"Unknown mode: {mode}. Use 'prob_den_add' or 'n_trials_add'")
             
             odds_list.append(log_odd)
         
@@ -331,26 +350,55 @@ def normalize_log_odds(log_odds, ild_values):
 # ===================================================================
 
 def plot_log_odds(normalized_log_odds, ild_values, lam, jitter_values_ms,
-                  N_neurons, rho, theta, abl, save_fig=True):
+                  N_neurons, rho, theta, abl, l, Nr0_base,
+                  rate_scalar_right, rate_scalar_left, save_fig=True):
     """
     Plot normalized log odds vs ILD for different jitter values.
-    Also plots DDM reference curve.
+    Also plots DDM reference curve and theoretical Poisson log odds.
     """
     # DDM log odds (analytical)
     cont_ild = np.arange(1, max(ild_values) + 1, 0.1)
     ddm_logodds = np.tanh(lam * cont_ild / 17.37)
     ddm_logodds_norm = ddm_logodds / np.max(np.abs(ddm_logodds))
     
+    # Calculate theoretical Poisson log odds (no jitter) using find_h0
+    theoretical_log_odds = []
+    for ild_val in ild_values:
+        r_db_ild = (2 * abl + ild_val) / 2
+        l_db_ild = (2 * abl - ild_val) / 2
+        pr_ild = 10 ** (r_db_ild / 20)
+        pl_ild = 10 ** (l_db_ild / 20)
+        
+        den_ild = (pr_ild ** (lam * l)) + (pl_ild ** (lam * l))
+        rr_ild = (pr_ild ** lam) / den_ild
+        rl_ild = (pl_ild ** lam) / den_ild
+        
+        r0_ild = Nr0_base / N_neurons
+        r_right_ild = r0_ild * rr_ild * rate_scalar_right
+        r_left_ild = r0_ild * rl_ild * rate_scalar_left
+        
+        h0 = find_h0(r_right_ild, r_left_ild, N_neurons, rho)
+        theoretical_log_odds.append(-h0 * theta)
+    
+    theoretical_log_odds = np.array(theoretical_log_odds)
+    theoretical_log_odds_norm = theoretical_log_odds / np.max(np.abs(theoretical_log_odds))
+    
     # Create figure
     plt.figure(figsize=(12, 8))
     
-    # Color map for jitter values
+    # Color map and markers for jitter values
     colors = plt.cm.viridis(np.linspace(0, 0.9, len(normalized_log_odds)))
+    markers = ['o', '^', 'v', 'D', 'p', 'h', '*', 'X']  # 8 different markers
     
-    # Plot Poisson log odds for each jitter
+    # Plot Poisson log odds for each jitter (simulated)
     for idx, (jitter_ms, norm_odds) in enumerate(sorted(normalized_log_odds.items())):
-        plt.plot(ild_values, norm_odds, marker='o', markersize=10, linewidth=2.5,
-                 color=colors[idx], label=f'Poisson (jitter={jitter_ms}ms)')
+        marker = markers[idx % len(markers)]
+        plt.plot(ild_values, norm_odds, marker=marker, markersize=10, linewidth=2.5,
+                 color=colors[idx], label=f'Poisson Sim (jitter={jitter_ms}ms)')
+    
+    # Plot theoretical Poisson log odds (normalized)
+    plt.plot(ild_values, theoretical_log_odds_norm, marker='s', markersize=10, linewidth=2.5,
+             color='red', linestyle=':', label='Poisson Theory (no jitter)')
     
     # Plot DDM reference
     plt.plot(cont_ild, ddm_logodds_norm, linestyle='--', color='k', lw=2.5, 
@@ -412,12 +460,14 @@ def plot_raw_log_odds(log_odds, ild_values, lam, jitter_values_ms,
     # Create figure
     plt.figure(figsize=(12, 8))
     
-    # Color map for jitter values
+    # Color map and markers for jitter values
     colors = plt.cm.viridis(np.linspace(0, 0.9, len(log_odds)))
+    markers = ['o', '^', 'v', 'D', 'p', 'h', '*', 'X']  # 8 different markers
     
     # Plot Poisson log odds for each jitter (simulated)
     for idx, (jitter_ms, odds) in enumerate(sorted(log_odds.items())):
-        plt.plot(ild_values, odds, marker='o', markersize=10, linewidth=2.5,
+        marker = markers[idx % len(markers)]
+        plt.plot(ild_values, odds, marker=marker, markersize=10, linewidth=2.5,
                  color=colors[idx], label=f'Poisson Sim (jitter={jitter_ms}ms)')
     
     # Plot theoretical Poisson log odds (no jitter)
@@ -478,7 +528,10 @@ results = generate_simulation_data(
 # ===================================================================
 # 7. CALCULATE LOG ODDS
 # ===================================================================
-log_odds = calculate_log_odds(results, ild_values)
+# log_odds = calculate_log_odds(results, ild_values)
+# prob_den_add or n_trials_add mode
+log_odds = calculate_log_odds(results, ild_values, mode='n_trials_add')
+
 normalized_log_odds = normalize_log_odds(log_odds, ild_values)
 
 # Print summary
@@ -495,7 +548,8 @@ for jitter_ms in sorted(log_odds.keys()):
 # 8. PLOT NORMALIZED LOG ODDS
 # ===================================================================
 plot_log_odds(normalized_log_odds, ild_values, lam, jitter_values_ms,
-              N_neurons, rho, theta, abl)
+              N_neurons, rho, theta, abl, l, Nr0_base,
+              rate_scalar_right, rate_scalar_left)
 
 # %%
 # ===================================================================
