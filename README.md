@@ -184,6 +184,15 @@ Use .venv library
 - mgf_helper_utils.py: MGF utils for accuracy, mean RT
 - h0_vs_rho.py: Plot h0 (drift parameter from MGF) vs rho for fixed N at a given ILD
 
+## Jitter Effect Analysis
+- `jitter_log_odds.py` - **Simulates Poisson spiking model with different jitter (spike timing noise) values and compares empirical log odds to DDM.**
+  - Simulates correlated Poisson spike trains with exponential jitter applied to spike times
+  - Calculates empirical log odds from choice proportions: `log(P_right / P_left)`
+  - Plots normalized log odds vs ILD for different jitter values alongside DDM analytical curve
+  - Separates data generation from plotting for efficient iteration
+  - Parameters: N_neurons, rho, theta, jitter values (ms), ILD values, N_trials
+  - Saves results to timestamped pickle files and PNG plots
+
 ## Experiment with N, rho varying and mismatch btn DDM and poisson
 - poisson_ddm_mgf_n_rho_vary.py: DDM fix, Poisson vary - correlation, N
 - poisson_ddm_mgf_rate_theta_vary.py: DDM fix, Poisson vary - rate

@@ -255,7 +255,7 @@ plt.show()
 # %%
 # Plot h0 * theta vs ILD for different rho values
 theta_fixed = 20
-ild_plot_values = [1, 2, 4, 8, 16]
+ild_plot_values = [1, 2, 4, 8, 16, 32]
 rho_plot_values =  10**np.arange(-6, 0, 0.1)
 
 N_fixed = 1000
@@ -302,7 +302,7 @@ plt.show()
 
 # %%
 # Same plot but normalized by h0 at ILD=48 for each rho
-cont_ild = np.arange(1, 16.1, 0.1)
+cont_ild = np.arange(1, 32.1, 0.1)
 ddm_logodds = np.tanh(lam * cont_ild/17.37)
 ddm_logodds_norm = ddm_logodds / np.max(np.abs(ddm_logodds))
 chosen_ild = ild_plot_values[-1]
@@ -344,7 +344,7 @@ plt.title(f'Normalized h₀ × θ vs ILD (normalized by ILD={chosen_ild})\nN={N_
 plt.grid(True, alpha=0.3, linestyle='--')
 plt.xticks(ild_plot_values)
 plt.plot(cont_ild, ddm_logodds_norm, linestyle='--', color='k', lw=2, label='DDM')
-# plt.legend(fontsize=14)
+plt.legend(fontsize=14)
 plt.tight_layout()
 plt.show()
 
