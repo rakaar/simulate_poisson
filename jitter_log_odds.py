@@ -21,7 +21,7 @@ N_trials = int(20e3)  # Number of trials per condition
 
 # Poisson model parameters (fixed)
 N_neurons = 1000  # Number of neurons in each pool (right and left)
-rho = 1e-4 # Correlation parameter
+rho = 1e-2 # Correlation parameter
 
 # DDM / psychometric parameters
 lam = 1.3
@@ -164,7 +164,7 @@ def run_single_trial(args):
     ])
 
     if all_times.size == 0:
-        return (np.nan, 0)
+        return (np.nan, 0, np.nan)
 
     # Group simultaneous events
     events_df = pd.DataFrame({'time': all_times, 'evidence_jump': all_evidence})
@@ -186,13 +186,15 @@ def run_single_trial(args):
     if first_pos_idx < first_neg_idx:
         rt = event_times[first_pos_idx]
         choice = 1  # Right choice
-        return (rt, choice)
+        bound_offset = dv_trajectory[first_pos_idx] - theta  # overshoot beyond +theta
+        return (rt, choice, bound_offset)
     elif first_neg_idx < first_pos_idx:
         rt = event_times[first_neg_idx]
         choice = -1  # Left choice
-        return (rt, choice)
+        bound_offset = (-dv_trajectory[first_neg_idx]) - theta  # overshoot beyond -theta
+        return (rt, choice, bound_offset)
     else:
-        return (np.nan, 0)  # No decision
+        return (np.nan, 0, np.nan)  # No decision
 
 
 # %%
@@ -235,6 +237,7 @@ def generate_simulation_data(ild_values, jitter_values, N_trials, N_neurons, rho
             results_array = np.array(trial_results)
             rts = results_array[:, 0]
             choices = results_array[:, 1]
+            bound_offsets = results_array[:, 2]
             
             # Count outcomes
             n_right = np.sum(choices == 1)
@@ -245,6 +248,9 @@ def generate_simulation_data(ild_values, jitter_values, N_trials, N_neurons, rho
             decided_mask = ~np.isnan(rts)
             mean_rt = np.mean(rts[decided_mask]) if np.any(decided_mask) else np.nan
             
+            # Calculate mean bound offset (for theta correction in theory)
+            bound_offset_mean = np.nanmean(bound_offsets)
+            
             results[jitter_ms][ild] = {
                 'n_right': n_right,
                 'n_left': n_left,
@@ -253,7 +259,8 @@ def generate_simulation_data(ild_values, jitter_values, N_trials, N_neurons, rho
                 'rts': rts,
                 'choices': choices,
                 'r_right': r_right,
-                'r_left': r_left
+                'r_left': r_left,
+                'bound_offset_mean': bound_offset_mean
             }
             
             print(f"  ILD={ild}: n_right={n_right}, n_left={n_left}, "
@@ -425,16 +432,22 @@ def plot_log_odds(normalized_log_odds, ild_values, lam, jitter_values_ms,
 
 def plot_raw_log_odds(log_odds, ild_values, lam, jitter_values_ms,
                       N_neurons, rho, theta, abl, l, Nr0_base, 
-                      rate_scalar_right, rate_scalar_left, save_fig=True):
+                      rate_scalar_right, rate_scalar_left, results=None, save_fig=True):
     """
     Plot raw (non-normalized) log odds vs ILD for different jitter values.
-    Also plots theoretical Poisson log odds (no jitter) using find_h0.
+    Also plots theoretical Poisson log odds (no jitter) using find_h0 with bound correction.
+    
+    Parameters:
+    -----------
+    results : dict, optional
+        Simulation results dict containing bound_offset_mean per ILD (from jitter=0).
+        Used to correct theta for theoretical calculation.
     """
     # DDM log odds (analytical) - not normalized
     cont_ild = np.arange(1, max(ild_values) + 1, 0.1)
     ddm_logodds = np.tanh(lam * cont_ild / 17.37)
     
-    # Calculate theoretical Poisson log odds (no jitter) using find_h0
+    # Calculate theoretical Poisson log odds (no jitter) using find_h0 with theta correction
     theoretical_log_odds = []
     for ild_val in ild_values:
         # Calculate rates for this ILD
@@ -452,8 +465,18 @@ def plot_raw_log_odds(log_odds, ild_values, lam, jitter_values_ms,
         r_left_ild = r0_ild * rl_ild * rate_scalar_left
         
         h0 = find_h0(r_right_ild, r_left_ild, N_neurons, rho)
-        # Theoretical log odds is -h0 * theta (h0 is negative for right-favoring)
-        theoretical_log_odds.append(-h0 * theta)
+        
+        # Get bound offset correction from jitter=0 simulation if available
+        bound_offset_mean = 0.0
+        if results is not None and 0.0 in results:
+            ild_data = results[0.0].get(ild_val, {})
+            bound_offset_mean = ild_data.get('bound_offset_mean', 0.0)
+            if np.isnan(bound_offset_mean):
+                bound_offset_mean = 0.0
+        
+        theta_eff = theta + bound_offset_mean
+        # Theoretical log odds is -h0 * theta_eff
+        theoretical_log_odds.append(-h0 * theta_eff)
     
     theoretical_log_odds = np.array(theoretical_log_odds)
     
@@ -557,7 +580,7 @@ plot_log_odds(normalized_log_odds, ild_values, lam, jitter_values_ms,
 # ===================================================================
 plot_raw_log_odds(log_odds, ild_values, lam, jitter_values_ms,
                   N_neurons, rho, theta, abl, l, Nr0_base,
-                  rate_scalar_right, rate_scalar_left)
+                  rate_scalar_right, rate_scalar_left, results=results)
 
 # %%
 # ===================================================================
