@@ -239,3 +239,7 @@ Scripts for fitting Poisson model parameters to match DDM behavior using RT quan
   - 4-panel summary plot (includes fitted delay vs theta)
   - All validation plots show fitted delay value
   - MSE vs NDT comparison to verify optimization found good minimum 
+
+# equivlent normalized model 
+- `new_vs_tied_gamma_omega_same.py` - sigmoid rate funcs
+- `ei_vs_tied_gamma_omega_same.py` - Excitation and inhibtion both on a hemisphere
