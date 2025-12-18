@@ -243,3 +243,4 @@ Scripts for fitting Poisson model parameters to match DDM behavior using RT quan
 # equivlent normalized model 
 - `new_vs_tied_gamma_omega_same.py` - sigmoid rate funcs
 - `ei_vs_tied_gamma_omega_same.py` - Excitation and inhibtion both on a hemisphere
+- `ei_poisson_vs_ddm_rtd.png` - checking if the Exc and inhibition on a hemisphere matches with DDM
