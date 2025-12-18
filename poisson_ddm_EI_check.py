@@ -104,7 +104,7 @@ def simulate_ei_trial(rR_E, rR_I, rL_E, rL_I, alpha, theta, T, rng=None):
 
 # %%
 # Parameters
-beta = 1/5
+beta = 2
 rR_E = 50
 rR_I = rR_E*beta
 rL_E = 45
@@ -237,12 +237,27 @@ rts_ddm_left = rts_ddm[choices_ddm == -1]
 frac_right_ddm = len(rts_ddm_right) / n_decided_ddm
 frac_left_ddm = len(rts_ddm_left) / n_decided_ddm
 
+# Compute bin centers
+bin_centers = (bins[:-1] + bins[1:]) / 2
+bin_width = bins[1] - bins[0]
+
+# Compute histograms and scale by fraction
+h_ei_right, _ = np.histogram(rts_ei_right, bins=bins, density=True)
+h_ei_right *= frac_right_ei
+
+h_ddm_right, _ = np.histogram(rts_ddm_right, bins=bins, density=True)
+h_ddm_right *= frac_right_ddm
+
+h_ei_left, _ = np.histogram(rts_ei_left, bins=bins, density=True)
+h_ei_left *= frac_left_ei
+
+h_ddm_left, _ = np.histogram(rts_ddm_left, bins=bins, density=True)
+h_ddm_left *= frac_left_ddm
+
 # Left plot: Right choices (area = fraction of right choices)
 ax = axes[0]
-ax.hist(rts_ei_right, bins=bins, density=True, weights=np.ones(len(rts_ei_right)) * frac_right_ei,
-        alpha=0.5, label=f'Poisson E-I (frac={frac_right_ei:.3f})', histtype='step', linewidth=2)
-ax.hist(rts_ddm_right, bins=bins, density=True, weights=np.ones(len(rts_ddm_right)) * frac_right_ddm,
-        alpha=0.5, label=f'DDM (frac={frac_right_ddm:.3f})', histtype='step', linewidth=2)
+ax.plot(bin_centers, h_ei_right, label=f'Poisson E-I (frac={frac_right_ei:.3f})', linewidth=2)
+ax.plot(bin_centers, h_ddm_right, label=f'DDM (frac={frac_right_ddm:.3f})', linewidth=2)
 ax.set_xlabel('RT (s)')
 ax.set_ylabel('Density × P(choice)')
 ax.set_title(f'Right Choices (+1)')
@@ -251,10 +266,8 @@ ax.set_xlim(0,5)
 
 # Right plot: Left choices (area = fraction of left choices)
 ax = axes[1]
-ax.hist(rts_ei_left, bins=bins, density=True, weights=np.ones(len(rts_ei_left)) * frac_left_ei,
-        alpha=0.5, label=f'Poisson E-I (frac={frac_left_ei:.3f})', histtype='step', linewidth=2)
-ax.hist(rts_ddm_left, bins=bins, density=True, weights=np.ones(len(rts_ddm_left)) * frac_left_ddm,
-        alpha=0.5, label=f'DDM (frac={frac_left_ddm:.3f})', histtype='step', linewidth=2)
+ax.plot(bin_centers, h_ei_left, label=f'Poisson E-I (frac={frac_left_ei:.3f})', linewidth=2)
+ax.plot(bin_centers, h_ddm_left, label=f'DDM (frac={frac_left_ddm:.3f})', linewidth=2)
 ax.set_xlabel('RT (s)')
 ax.set_ylabel('Density × P(choice)')
 ax.set_title(f'Left Choices (-1)')
